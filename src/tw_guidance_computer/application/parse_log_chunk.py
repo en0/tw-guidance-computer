@@ -209,17 +209,47 @@ class ParseLogChunk:
         # Track sells
 
         # Simple cargo tracking from "OnBoard" column in commerce reports
+        # Only keep the last set of OnBoard values (most recent port visit)
         onboard_re = re.compile(
             r"(Fuel Ore|Organics|Equipment)\s+(?:Selling|Buying)\s+\d+\s+\d+%\s+(\d+)"
         )
-        cargo: list[CargoHold] = []
-        for m in onboard_re.finditer(text):
-            qty = int(m.group(2))
-            if qty > 0:
-                commodity = _parse_commodity_type(m.group(1))
-                cargo.append(CargoHold(commodity=commodity, quantity=qty, cost_per_unit=0.0))
+        # Find all commerce report positions to isolate the last one
+        commerce_positions = [m.start() for m in re.finditer(r"Commerce report for", text)]
+        last_commerce_pos = commerce_positions[-1] if commerce_positions else -1
 
-        if cargo:
+        # Find the last "empty cargo holds" line — if it's after the last commerce
+        # report, it's the authoritative state (a trade happened after the report)
+        holds_matches = list(re.finditer(
+            r"You have\s+[0-9,]+\s+credits and\s+(\d+)\s+empty cargo holds", text
+        ))
+        last_holds_pos = holds_matches[-1].start() if holds_matches else -1
+
+        if last_commerce_pos >= 0 and last_holds_pos > last_commerce_pos:
+            # A credits/holds line after the last commerce report means
+            # the cargo changed — use empty holds count to determine state
+            empty = int(holds_matches[-1].group(1))
+            if empty > 0:
+                # Player has empty holds after the report — cargo was sold
+                self._cargo = []
+                self._holds_empty = empty
+            else:
+                # Holds are full — use the commerce report OnBoard values
+                last_report_text = text[last_commerce_pos:]
+                cargo: list[CargoHold] = []
+                for m in onboard_re.finditer(last_report_text):
+                    qty = int(m.group(2))
+                    if qty > 0:
+                        commodity = _parse_commodity_type(m.group(1))
+                        cargo.append(CargoHold(commodity=commodity, quantity=qty, cost_per_unit=0.0))
+                self._cargo = cargo
+        elif last_commerce_pos >= 0:
+            last_report_text = text[last_commerce_pos:]
+            cargo = []
+            for m in onboard_re.finditer(last_report_text):
+                qty = int(m.group(2))
+                if qty > 0:
+                    commodity = _parse_commodity_type(m.group(1))
+                    cargo.append(CargoHold(commodity=commodity, quantity=qty, cost_per_unit=0.0))
             self._cargo = cargo
 
     def _extract_chat(self, text: str) -> None:

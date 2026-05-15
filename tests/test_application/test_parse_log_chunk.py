@@ -91,3 +91,44 @@ class TestParseLogChunk:
         assert status is not None
         assert status.credits == 5125
         assert status.holds_empty == 20
+
+    def test_cargo_uses_last_commerce_report_only(self, parser, store):
+        text = (
+            "Command [TL=00:00:00]:[100] (?=Help)? : P\n"
+            "Commerce report for Port Alpha: 01:00:00 AM Fri May 15, 2054\n"
+            "Fuel Ore   Buying    1000    100%      20\n"
+            "Organics   Selling   2000    100%       0\n"
+            "Equipment  Selling   1500    100%       0\n"
+            "You have 5,000 credits and 0 empty cargo holds.\n"
+            "Command [TL=00:00:00]:[100] (?=Help)? : P\n"
+            "Commerce report for Port Beta: 01:05:00 AM Fri May 15, 2054\n"
+            "Fuel Ore   Selling   1000    100%      10\n"
+            "Organics   Buying    2000    100%       5\n"
+            "Equipment  Selling   1500    100%       0\n"
+            "You have 6,000 credits and 0 empty cargo holds.\n"
+        )
+        parser.execute(text)
+        status = store.get_player_status()
+        assert status is not None
+        # 0 empty holds after last report means holds are full — use OnBoard values
+        assert len(status.cargo) == 2
+
+    def test_cargo_cleared_when_holds_empty_after_commerce(self, parser, store):
+        text = (
+            "Command [TL=00:00:00]:[827] (?=Help)? : P\n"
+            "Commerce report for Augsburg Major: 02:57:31 AM Fri May 15, 2054\n"
+            "Fuel Ore   Buying    1364     83%      50\n"
+            "Organics   Buying    2050     77%       0\n"
+            "Equipment  Selling   1560     58%       0\n"
+            "You have 30,211 credits and 0 empty cargo holds.\n"
+            "Command [TL=00:00:00]:[827] (?=Help)? : P\n"
+            "You have 32,211 credits and 50 empty cargo holds.\n"
+        )
+        parser.execute(text)
+        status = store.get_player_status()
+        assert status is not None
+        # The last "empty cargo holds" line shows 50 empty AFTER the commerce
+        # report, meaning cargo was sold — should be empty
+        assert status.cargo == []
+        assert status.holds_empty == 50
+        assert status.credits == 32211
