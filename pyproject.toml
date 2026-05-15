@@ -1,0 +1,62 @@
+[project]
+name = "tw-guidance-computer"
+version = "0.1.0"
+description = "Trade Wars 2002 guidance computer — real-time HUD and query tool"
+license = "MIT"
+requires-python = ">=3.12"
+dependencies = []
+authors = [
+    {name = "Ian Laird", email = "en0@users.noreply.github.com"},
+]
+
+[project.urls]
+Repository = "https://github.com/en0/tw-guidance-computer"
+
+[project.scripts]
+tw-hud = "tw_guidance_computer.hud:main"
+tw = "tw_guidance_computer.cli:main"
+
+[build-system]
+requires = ["uv-build>=0.7,<0.8"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "tw_guidance_computer"
+
+[dependency-groups]
+dev = [
+    "pre-commit",
+    "pytest",
+    "mypy",
+    "ruff>=0.15.13",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "D", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D"]
+"tools/**" = ["D", "UP"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.pytest.ini_options]
+markers = [
+    "mock_response: pre-configure mock response on patched fixtures",
+]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_untyped_calls = false
