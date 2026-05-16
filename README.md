@@ -2,6 +2,8 @@
 
 Trade Wars 2002 guidance computer — real-time HUD and query tool that parses your game session log and builds a persistent knowledge base.
 
+![Sector Art HUD](docs/images/sector-art.png)
+
 ## Usage
 
 Two entry points:

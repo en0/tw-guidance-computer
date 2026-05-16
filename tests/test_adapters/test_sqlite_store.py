@@ -98,3 +98,22 @@ class TestSqliteGameStateStore:
         assert sector is not None
         assert sector.region == "Persistent"
         store2.close()
+
+
+    def test_upsert_and_has_planet(self, store, make_planet):
+        planet = make_planet(sector_id=616, name="Terra", planet_class="M")
+        store.upsert_planet(planet)
+        assert store.has_planet(616) is True
+
+    def test_has_planet_false(self, store):
+        assert store.has_planet(999) is False
+
+    def test_multiple_planets_per_sector(self, store, make_planet):
+        store.upsert_planet(make_planet(sector_id=1, name="Terra", planet_class="M"))
+        store.upsert_planet(make_planet(sector_id=1, name="Luna", planet_class="K"))
+        assert store.has_planet(1) is True
+
+    def test_upsert_planet_updates_class(self, store, make_planet):
+        store.upsert_planet(make_planet(sector_id=5, name="X", planet_class="M"))
+        store.upsert_planet(make_planet(sector_id=5, name="X", planet_class="K"))
+        assert store.has_planet(5) is True

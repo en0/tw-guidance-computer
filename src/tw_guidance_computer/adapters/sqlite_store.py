@@ -12,6 +12,7 @@ from tw_guidance_computer.domain.models import (
     CargoHold,
     ChatMessage,
     CommodityType,
+    Planet,
     PlayerStatus,
     Port,
     PortCommodity,
@@ -59,6 +60,13 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     message TEXT NOT NULL,
     channel TEXT NOT NULL,
     timestamp TEXT NOT NULL DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS planets (
+    sector_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    planet_class TEXT NOT NULL,
+    PRIMARY KEY (sector_id, name)
 );
 """
 
@@ -245,6 +253,23 @@ class SqliteGameStateStore(GameStateStore):
         from tw_guidance_computer.application.find_trade_pairs import FindTradePairs
 
         return FindTradePairs(self).execute()
+
+    @override
+    def upsert_planet(self, planet: Planet) -> None:
+        self._conn.execute(
+            """INSERT INTO planets (sector_id, name, planet_class) VALUES (?, ?, ?)
+               ON CONFLICT(sector_id, name) DO UPDATE SET
+                 planet_class = excluded.planet_class""",
+            (planet.sector_id, planet.name, planet.planet_class),
+        )
+        self._conn.commit()
+
+    @override
+    def has_planet(self, sector_id: int) -> bool:
+        row = self._conn.execute(
+            "SELECT 1 FROM planets WHERE sector_id = ? LIMIT 1", (sector_id,)
+        ).fetchone()
+        return row is not None
 
     def close(self) -> None:
         """Close the database connection."""

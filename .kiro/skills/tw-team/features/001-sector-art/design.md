@@ -1,6 +1,6 @@
 # Feature Design: Sector Art
 
-STATUS: building
+STATUS: complete
 
 ## Use Cases (from user — do not modify)
 1. When I travel to a sector with a port (e.g., sector 123 with "Regel Station"), I see a deterministically-generated ASCII art picture of that port on the HUD. The picture is generated from a hash of the port name, so my picture for Regel Station looks just like my buddy's Regel Station.

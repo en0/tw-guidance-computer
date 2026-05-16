@@ -4,6 +4,7 @@ from typing import Protocol
 
 from tw_guidance_computer.domain.models import (
     ChatMessage,
+    Planet,
     PlayerStatus,
     Port,
     Sector,
@@ -132,5 +133,24 @@ class GameStateStore(Protocol):
 
         Returns:
             Trade pairs sorted by complementary count descending.
+        """
+        ...
+
+    def upsert_planet(self, planet: Planet) -> None:
+        """Insert or update a planet.
+
+        Args:
+            planet: The planet to store.
+        """
+        ...
+
+    def has_planet(self, sector_id: int) -> bool:
+        """Check if a sector has at least one planet.
+
+        Args:
+            sector_id: The sector to check.
+
+        Returns:
+            True if the sector has a planet, False otherwise.
         """
         ...

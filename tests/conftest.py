@@ -5,6 +5,7 @@ import pytest
 from tw_guidance_computer.domain.models import (
     CargoHold,
     CommodityType,
+    Planet,
     PlayerStatus,
     Port,
     PortCommodity,
@@ -82,5 +83,16 @@ def make_player_status():
         kwargs.setdefault("holds_total", 20)
         kwargs.setdefault("holds_empty", 20)
         return PlayerStatus(**kwargs)
+
+    return _factory
+
+
+@pytest.fixture()
+def make_planet():
+    def _factory(**kwargs):
+        kwargs.setdefault("sector_id", 100)
+        kwargs.setdefault("name", "Terra")
+        kwargs.setdefault("planet_class", "M")
+        return Planet(**kwargs)
 
     return _factory

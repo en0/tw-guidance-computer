@@ -114,6 +114,24 @@ class SellRecommendation:
 
 
 @dataclass(frozen=True)
+class Planet:
+    """A planet in a sector."""
+
+    sector_id: int
+    name: str
+    planet_class: str
+
+    def __post_init__(self) -> None:
+        """Validate planet fields."""
+        if self.sector_id < 1:
+            raise ValueError("sector_id must be positive")
+        if not self.name.strip():
+            raise ValueError("name must not be empty")
+        if len(self.planet_class) != 1 or not self.planet_class.isupper():
+            raise ValueError("planet_class must be a single uppercase letter")
+
+
+@dataclass(frozen=True)
 class PlayerStatus:
     """Current player state snapshot."""
 

@@ -10,8 +10,9 @@ from tw_guidance_computer.application.find_path import FindPath
 from tw_guidance_computer.application.find_sell_locations import FindSellLocations
 from tw_guidance_computer.application.find_trade_pairs import FindTradePairs
 from tw_guidance_computer.application.ports.game_state_store import GameStateStore
+from tw_guidance_computer.application.render_sector_art import RenderSectorArt
 from tw_guidance_computer.application.search_ports import SearchPorts
-from tw_guidance_computer.domain.exceptions import PathNotFoundError
+from tw_guidance_computer.domain.exceptions import PathNotFoundError, SectorNotFoundError
 
 
 @final
@@ -203,3 +204,26 @@ class CliAdapter:
             print(f"\n    {hops} hops - {line}")
             for r in p.routes:
                 print(f"      {r}")
+
+    def sector_art(self, sector_id: int) -> None:
+        """Render sector art for a previously visited sector."""
+        sector = self._store.get_sector(sector_id)
+        if sector is None or not sector.explored:
+            raise SectorNotFoundError(f"Sector {sector_id} has not been explored yet.")
+
+        grid = RenderSectorArt(self._store).execute(sector_id, 80, 14)
+
+        # Header
+        region = sector.region or "Unknown"
+        print(f"─── Sector {sector_id}: {region} ───")
+
+        # Render with ANSI color
+        reset = "\033[0m"
+        for row in grid:
+            parts = []
+            for char, color in row:
+                if color:
+                    parts.append(f"{color}{char}{reset}")
+                else:
+                    parts.append(char)
+            print("".join(parts))

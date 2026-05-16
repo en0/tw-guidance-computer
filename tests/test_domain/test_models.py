@@ -1,5 +1,6 @@
 """Tests for domain models."""
 
+import pytest
 
 from tw_guidance_computer.domain.models import (
     CommodityType,
@@ -27,6 +28,35 @@ class TestPort:
         commodities = [make_port_commodity(quantity=2000)]
         port = make_port(commodities=commodities)
         assert port.commodities[0].quantity == 2000
+
+
+class TestPlanet:
+    def test_construction(self, make_planet):
+        planet = make_planet(sector_id=1, name="Terra", planet_class="M")
+        assert planet.sector_id == 1
+        assert planet.name == "Terra"
+        assert planet.planet_class == "M"
+
+    def test_frozen(self, make_planet):
+        planet = make_planet()
+        with pytest.raises(AttributeError):
+            planet.name = "other"  # type: ignore[misc]
+
+    def test_invalid_sector_id(self, make_planet):
+        with pytest.raises(ValueError, match="sector_id must be positive"):
+            make_planet(sector_id=0)
+
+    def test_empty_name(self, make_planet):
+        with pytest.raises(ValueError, match="name must not be empty"):
+            make_planet(name="   ")
+
+    def test_invalid_planet_class_lowercase(self, make_planet):
+        with pytest.raises(ValueError, match="planet_class must be a single uppercase letter"):
+            make_planet(planet_class="m")
+
+    def test_invalid_planet_class_multi_char(self, make_planet):
+        with pytest.raises(ValueError, match="planet_class must be a single uppercase letter"):
+            make_planet(planet_class="MM")
 
 
 class TestCargoHold:

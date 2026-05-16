@@ -8,6 +8,7 @@ from pathlib import Path
 
 from tw_guidance_computer.adapters.cli_commands import CliAdapter
 from tw_guidance_computer.adapters.sqlite_store import SqliteGameStateStore
+from tw_guidance_computer.domain.exceptions import GuidanceError
 
 DEFAULT_DB_PATH = Path.home() / ".local" / "share" / "tw-guidance-computer" / "game.db"
 
@@ -51,6 +52,9 @@ def main() -> None:
 
     sub.add_parser("chat", help="Show recent chat messages")
 
+    p = sub.add_parser("sector-art", help="View sector art for a visited sector")
+    p.add_argument("sector", type=int)
+
     args = parser.parse_args()
     if not args.command:
         parser.print_help()
@@ -85,5 +89,10 @@ def main() -> None:
                 cli.sell(args.hops)
             case "chat":
                 cli.chat()
+            case "sector-art":
+                cli.sector_art(args.sector)
+    except GuidanceError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
     finally:
         store.close()

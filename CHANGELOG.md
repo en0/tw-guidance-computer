@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.3.0
+
+### New Features
+
+- **Sector Art**: Deterministic ASCII art in the HUD showing sector contents at a glance
+  - Port art generated via WFC-like tile placement, seeded by port name hash — same station looks the same for every player
+  - Planet shown as a quarter-circle in the bottom-left (static design)
+  - Stardock shown as a small structure on the right (static design, conveys distance)
+  - Empty sectors display a starfield background
+  - Multiple elements compose together: starfield → planet → port → stardock
+  - 256-color support with seed-determined color schemes per station
+  - Art panel cached per sector, regenerates on sector change or terminal resize
+  - Graceful degradation: hidden on terminals < 25 rows
+- **`tw sector-art <sector_id>`**: CLI command to view sector art for previously visited sectors
+- **Planet detection**: Parser now extracts planet presence from sector displays (`Planets : (M) Terra`)
+
+### Architecture
+
+- New domain model: `Planet` (frozen dataclass with validation)
+- New use case: `RenderSectorArt` — orchestrates store queries + domain art generation
+- New port methods: `upsert_planet`, `has_planet` on `GameStateStore`
+- New SQLite table: `planets` (sector_id, name, planet_class)
+- HUD layout: two-column area fixed at 12 rows, art panel fills remaining space above footer
+
 ## 0.2.0
 
 ### Parser Accuracy

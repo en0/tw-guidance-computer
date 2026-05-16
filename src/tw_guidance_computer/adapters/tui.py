@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import curses
+import re
 import time
 from typing import final
 
@@ -12,7 +13,12 @@ from tw_guidance_computer.application.find_trade_pairs import FindTradePairs
 from tw_guidance_computer.application.parse_log_chunk import ParseLogChunk
 from tw_guidance_computer.application.ports.game_state_store import GameStateStore
 from tw_guidance_computer.application.ports.log_reader import LogReader
+from tw_guidance_computer.application.render_sector_art import RenderSectorArt
 from tw_guidance_computer.domain.models import PlayerStatus
+
+_ANSI_COLOR_RE = re.compile(r"\033\[38;5;(\d+)m")
+_TWO_COLUMN_HEIGHT = 12
+_MIN_ART_HEIGHT = 6
 
 
 @final
@@ -38,8 +44,14 @@ class HudDisplay:
         self._find_pairs = FindTradePairs(store)
         self._find_nearest = FindNearestPair(store)
         self._find_sell = FindSellLocations(store)
+        self._render_art = RenderSectorArt(store)
         self._running = True
         self._pairs_mode = "best"  # "best" or "nearest"
+        self._art_cache: list[list[tuple[str, str]]] | None = None
+        self._art_sector: int | None = None
+        self._art_size: tuple[int, int] = (0, 0)
+        self._color_pair_map: dict[int, int] = {}
+        self._next_pair_id = 10
 
     def run(self) -> None:
         """Start the HUD display loop."""
@@ -97,8 +109,19 @@ class HudDisplay:
         right_row = 2
         right_row = self._render_trade_pairs(stdscr, right_row, panel_width, max_x)
 
-        # Right panel: chat
-        self._render_chat(stdscr, right_row, panel_width, max_x, max_y)
+        # Right panel: chat (constrained to two-column area)
+        two_col_bottom = 2 + _TWO_COLUMN_HEIGHT
+        art_top = two_col_bottom
+        art_bottom = max_y - 1  # footer row
+        art_height = art_bottom - art_top
+
+        # If art panel won't render, let COMMS use full height
+        chat_bottom = two_col_bottom if art_height >= _MIN_ART_HEIGHT else max_y - 1
+        self._render_chat(stdscr, right_row, panel_width, max_x, chat_bottom)
+
+        # Art panel (below two-column area, above footer)
+        if art_height >= _MIN_ART_HEIGHT:
+            self._render_art_panel(stdscr, art_top, max_x, art_height, status)
 
         # Footer
         self._safe_addstr(stdscr, max_y - 1, 0, " [q] quit  [t] toggle pairs ", curses.A_REVERSE)
@@ -253,6 +276,59 @@ class HudDisplay:
             line = f" [{msg.channel[0]}] {msg.sender}: {msg.message}"
             self._safe_addstr(stdscr, row, col, line[:width], curses.color_pair(5))
             row += 1
+
+    def _render_art_panel(
+        self, stdscr: curses.window, top: int, width: int, height: int, status: PlayerStatus | None
+    ) -> None:
+        current_sector = status.sector_id if status else None
+        size = (width, height)
+
+        # Regenerate art on sector change or resize
+        if self._art_cache is None or self._art_sector != current_sector or self._art_size != size:
+            if current_sector is not None:
+                self._art_cache = self._render_art.execute(current_sector, width, height)
+            else:
+                self._art_cache = None
+            self._art_sector = current_sector
+            self._art_size = size
+
+        if self._art_cache is None:
+            return
+
+        # Separator line
+        self._safe_addstr(stdscr, top, 0, "─" * width, curses.color_pair(2))
+
+        for y, row in enumerate(self._art_cache):
+            screen_y = top + 1 + y
+            if screen_y >= top + height:
+                break
+            for x, (char, color_escape) in enumerate(row):
+                if x >= width - 1:
+                    break
+                if char == " ":
+                    continue
+                attr = self._get_color_pair(color_escape)
+                try:
+                    stdscr.addstr(screen_y, x, char, attr)
+                except curses.error:
+                    pass
+
+    def _get_color_pair(self, ansi_escape: str) -> int:
+        if not ansi_escape:
+            return 0
+        m = _ANSI_COLOR_RE.match(ansi_escape)
+        if not m:
+            return 0
+        color_num = int(m.group(1))
+        if color_num not in self._color_pair_map:
+            pair_id = self._next_pair_id
+            self._next_pair_id += 1
+            try:
+                curses.init_pair(pair_id, color_num, -1)
+            except curses.error:
+                return 0
+            self._color_pair_map[color_num] = pair_id
+        return curses.color_pair(self._color_pair_map[color_num])
 
     def _safe_addstr(self, stdscr: curses.window, y: int, x: int, text: str, attr: int = 0) -> None:
         max_y, max_x = stdscr.getmaxyx()

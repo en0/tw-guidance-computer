@@ -437,3 +437,54 @@ class TestTransactionTracking:
         assert status.cargo[0].quantity == 20
         assert status.cargo[0].cost_per_unit == pytest.approx(116.0 / 20)
         assert status.credits == 1623
+
+
+    def test_extracts_planet(self, parser, store):
+        text = (
+            "Sector  : 616 in uncharted space.\n"
+            "Ports   : Trader Vic's, Class 6 (SBS)\n"
+            "Planets : (M) Terra\n"
+            "Warps to Sector(s) :  544 - 564 - 825\nCommand"
+        )
+        parser.execute(text)
+        assert store.has_planet(616) is True
+
+    def test_planet_associated_with_correct_sector(self, parser, store):
+        text = (
+            "Sector  : 1 in The Federation.\n"
+            "Ports   : Sol, Class 0 (Special)\n"
+            "Planets : (M) Terra\n"
+            "Warps to Sector(s) :  2 - 3\nCommand\n"
+            "Sector  : 2 in The Federation.\n"
+            "Warps to Sector(s) :  1 - 4\nCommand"
+        )
+        parser.execute(text)
+        assert store.has_planet(1) is True
+        assert store.has_planet(2) is False
+
+    def test_multiple_planets_in_sector(self, parser, store):
+        text = (
+            "Sector  : 100 in The Federation.\n"
+            "Planets : (M) Terra\n"
+            "Planets : (K) Vulcan\n"
+            "Warps to Sector(s) :  200\nCommand"
+        )
+        parser.execute(text)
+        assert store.has_planet(100) is True
+
+    def test_no_false_planet_match(self, parser, store):
+        text = (
+            "Sector  : 50 in The Federation.\n"
+            "Warps to Sector(s) :  51\nCommand"
+        )
+        parser.execute(text)
+        assert store.has_planet(50) is False
+
+    def test_planet_with_hyphenated_name(self, parser, store):
+        text = (
+            "Sector  : 300 in uncharted space.\n"
+            "Planets : (O) Mando-2\n"
+            "Warps to Sector(s) :  301\nCommand"
+        )
+        parser.execute(text)
+        assert store.has_planet(300) is True

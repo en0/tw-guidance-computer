@@ -10,6 +10,7 @@ from tw_guidance_computer.domain.models import (
     CargoHold,
     ChatMessage,
     CommodityType,
+    Planet,
     PlayerStatus,
     Port,
     PortCommodity,
@@ -49,6 +50,7 @@ class ParseLogChunk:
         """
         self._extract_sectors_and_warps(text)
         self._extract_ports(text)
+        self._extract_planets(text)
         self._extract_commerce_reports(text)
         # Sync points reset cargo state; track position of last one
         sync_pos = self._extract_sync_points(text)
@@ -125,6 +127,29 @@ class ParseLogChunk:
                     name=port_name,
                     port_class=port_class,
                     port_type=port_type,
+                )
+            )
+
+    def _extract_planets(self, text: str) -> None:
+        planet_re = re.compile(r"Planets?\s*:\s*\(([A-Z])\)\s*(.+)")
+        sector_re = re.compile(r"Sector\s+:\s+(\d+)")
+
+        for m in planet_re.finditer(text):
+            planet_class = m.group(1)
+            planet_name = m.group(2).strip()
+
+            # Find the sector this planet belongs to
+            preceding = text[max(0, m.start() - 300) : m.start()]
+            sec_match = list(sector_re.finditer(preceding))
+            if not sec_match:
+                continue
+            sector_id = int(sec_match[-1].group(1))
+
+            self._store.upsert_planet(
+                Planet(
+                    sector_id=sector_id,
+                    name=planet_name,
+                    planet_class=planet_class,
                 )
             )
 
