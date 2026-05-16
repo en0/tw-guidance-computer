@@ -6,6 +6,7 @@ import curses
 import time
 from typing import final
 
+from tw_guidance_computer.application.find_nearest_pair import FindNearestPair
 from tw_guidance_computer.application.find_sell_locations import FindSellLocations
 from tw_guidance_computer.application.find_trade_pairs import FindTradePairs
 from tw_guidance_computer.application.parse_log_chunk import ParseLogChunk
@@ -35,8 +36,10 @@ class HudDisplay:
         self._reader = reader
         self._parser = parser
         self._find_pairs = FindTradePairs(store)
+        self._find_nearest = FindNearestPair(store)
         self._find_sell = FindSellLocations(store)
         self._running = True
+        self._pairs_mode = "best"  # "best" or "nearest"
 
     def run(self) -> None:
         """Start the HUD display loop."""
@@ -64,6 +67,8 @@ class HudDisplay:
             if key == ord("q"):
                 self._running = False
                 break
+            elif key == ord("t"):
+                self._pairs_mode = "nearest" if self._pairs_mode == "best" else "best"
 
             # Render
             stdscr.erase()
@@ -96,7 +101,7 @@ class HudDisplay:
         self._render_chat(stdscr, right_row, panel_width, max_x, max_y)
 
         # Footer
-        self._safe_addstr(stdscr, max_y - 1, 0, " [q] quit ", curses.A_REVERSE)
+        self._safe_addstr(stdscr, max_y - 1, 0, " [q] quit  [t] toggle pairs ", curses.A_REVERSE)
 
     def _render_header(self, stdscr: curses.window, max_x: int, status: PlayerStatus | None) -> None:
         header = " TW2002 GUIDANCE COMPUTER "
@@ -107,8 +112,24 @@ class HudDisplay:
             loc = f"Sector: {status.sector_id}"
             turns = f"Turns: {status.turns_remaining}"
             credits = f"Credits: {status.credits:,}"
-            status_line = f" {loc}  │  {turns}  │  {credits} "
-            self._safe_addstr(stdscr, 1, 0, status_line, curses.color_pair(3) | curses.A_BOLD)
+            # Render sector and separator
+            col = 1
+            self._safe_addstr(stdscr, 1, col, loc, curses.color_pair(3) | curses.A_BOLD)
+            col += len(loc)
+            self._safe_addstr(stdscr, 1, col, "  │  ", curses.color_pair(3))
+            col += 5
+            # Turns with color warning
+            if status.turns_remaining < 50:
+                turns_attr = curses.color_pair(4) | curses.A_BOLD  # red
+            elif status.turns_remaining < 100:
+                turns_attr = curses.color_pair(3) | curses.A_BOLD | curses.A_REVERSE  # yellow inverse
+            else:
+                turns_attr = curses.color_pair(3) | curses.A_BOLD
+            self._safe_addstr(stdscr, 1, col, turns, turns_attr)
+            col += len(turns)
+            self._safe_addstr(stdscr, 1, col, "  │  ", curses.color_pair(3))
+            col += 5
+            self._safe_addstr(stdscr, 1, col, credits, curses.color_pair(3) | curses.A_BOLD)
         else:
             self._safe_addstr(stdscr, 1, 0, " Waiting for data...", curses.color_pair(3))
 
@@ -165,9 +186,18 @@ class HudDisplay:
     def _render_trade_pairs(self, stdscr: curses.window, row: int, left_width: int, max_x: int) -> int:
         col = left_width + 1
         width = max_x - col - 1
-        self._safe_addstr(stdscr, row, col, "─── TRADE PAIRS ───", curses.color_pair(2))
+        if self._pairs_mode == "best":
+            title = "─── BEST PAIRS [t=nearest] ───"
+        else:
+            title = "─── NEAREST PAIRS [t=best] ───"
+        self._safe_addstr(stdscr, row, col, title, curses.color_pair(2))
         row += 1
 
+        if self._pairs_mode == "nearest":
+            return self._render_nearest_pairs(stdscr, row, col, width)
+        return self._render_best_pairs(stdscr, row, col, width)
+
+    def _render_best_pairs(self, stdscr: curses.window, row: int, col: int, width: int) -> int:
         pairs = self._find_pairs.execute(min_complementary=2)
         if not pairs:
             self._safe_addstr(stdscr, row, col + 1, "None found yet", curses.color_pair(1))
@@ -175,7 +205,29 @@ class HudDisplay:
 
         for pair in pairs[:6]:
             line = (
-                f" [{pair.sector_a}]↔[{pair.sector_b}]"
+                f" [{pair.sector_a}]\u2194[{pair.sector_b}]"
+                f" {pair.complementary_count}/3 {pair.port_a_type}|{pair.port_b_type}"
+            )
+            self._safe_addstr(stdscr, row, col, line[:width], curses.color_pair(1))
+            row += 1
+
+        row += 1
+        return row
+
+    def _render_nearest_pairs(self, stdscr: curses.window, row: int, col: int, width: int) -> int:
+        status = self._store.get_player_status()
+        if not status:
+            self._safe_addstr(stdscr, row, col + 1, "No position known", curses.color_pair(1))
+            return row + 2
+
+        results = self._find_nearest.execute(status.sector_id, limit=6)
+        if not results:
+            self._safe_addstr(stdscr, row, col + 1, "None found yet", curses.color_pair(1))
+            return row + 2
+
+        for hops, pair in results:
+            line = (
+                f" {hops}h [{pair.sector_a}]\u2194[{pair.sector_b}]"
                 f" {pair.complementary_count}/3 {pair.port_a_type}|{pair.port_b_type}"
             )
             self._safe_addstr(stdscr, row, col, line[:width], curses.color_pair(1))

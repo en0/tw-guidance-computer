@@ -50,7 +50,12 @@ class ParseLogChunk:
         self._extract_sectors_and_warps(text)
         self._extract_ports(text)
         self._extract_commerce_reports(text)
+        # Sync points reset cargo state; track position of last one
+        sync_pos = self._extract_sync_points(text)
         self._extract_player_state(text)
+        # Only process transactions after the last sync point
+        tx_text = text[sync_pos:] if sync_pos > 0 else text
+        self._extract_transactions(tx_text)
         self._extract_chat(text)
         self._update_player_status()
 
@@ -182,75 +187,148 @@ class ParseLogChunk:
                     )
                 )
 
+    def _extract_sync_points(self, text: str) -> int:
+        """Parse <Info> block and compact status bar. Returns position of last sync point."""
+        last_sync_pos = 0
+
+        # Collect all sync points with their positions, apply in document order
+        syncs: list[tuple[int, dict[str, object]]] = []
+
+        # <Info> block
+        info_re = re.compile(
+            r"<Info>\s*\n"
+            r"(?:.*\n)*?"  # skip trader name, rank, corp, ship lines
+            r"Current Sector\s*:\s*(\d+)\s*\n"
+            r"Turns left\s*:\s*(\d+)\s*\n"
+            r"Total Holds\s*:\s*(\d+)\s*-\s*(.+?)\s*\n"
+            r"(?:.*\n)*?"  # skip fighters, shields
+            r"Credits\s*:\s*([0-9,]+)"
+        )
+        for m in info_re.finditer(text):
+            holds_desc = m.group(4)
+            cargo = _parse_holds_description(holds_desc)
+            empty_m = re.search(r"Empty=(\d+)", holds_desc)
+            syncs.append((m.end(), {
+                "sector": int(m.group(1)),
+                "turns": int(m.group(2)),
+                "holds_total": int(m.group(3)),
+                "holds_empty": int(empty_m.group(1)) if empty_m else 0,
+                "credits": int(m.group(5).replace(",", "")),
+                "cargo": cargo,
+            }))
+
+        # Compact status bar
+        bar_re = re.compile(
+            r"Sect\s+(\d+)"
+            r"\s*│\s*Turns\s+([0-9,]+)"
+            r"\s*│\s*Creds\s+([0-9,]+)"
+            r"\s*│\s*Figs\s+[0-9,]+"
+            r"\s*│\s*Shlds\s+[0-9,]+"
+            r"\s*│\s*Hlds\s+([0-9,]+)"
+            r"\s*│\s*Ore\s+(\d+)"
+            r"\s*│\s*Org\s+(\d+)"
+            r"\s*│\s*Equ\s+(\d+)"
+            r"\s*│\s*Col\s+(\d+)"
+        )
+        for m in bar_re.finditer(text):
+            ore = int(m.group(5))
+            org = int(m.group(6))
+            equ = int(m.group(7))
+            col = int(m.group(8))
+            holds_total = int(m.group(4).replace(",", ""))
+            bar_cargo: list[CargoHold] = []
+            if ore > 0:
+                bar_cargo.append(CargoHold(commodity=CommodityType.FUEL_ORE, quantity=ore, cost_per_unit=0.0))
+            if org > 0:
+                bar_cargo.append(CargoHold(commodity=CommodityType.ORGANICS, quantity=org, cost_per_unit=0.0))
+            if equ > 0:
+                bar_cargo.append(CargoHold(commodity=CommodityType.EQUIPMENT, quantity=equ, cost_per_unit=0.0))
+            syncs.append((m.end(), {
+                "sector": int(m.group(1)),
+                "turns": int(m.group(2).replace(",", "")),
+                "holds_total": holds_total,
+                "holds_empty": holds_total - (ore + org + equ + col),
+                "credits": int(m.group(3).replace(",", "")),
+                "cargo": bar_cargo,
+            }))
+
+        # Apply in document order — last one wins
+        for pos, data in sorted(syncs):
+            self._current_sector = data["sector"]  # type: ignore[assignment]
+            self._turns_remaining = data["turns"]  # type: ignore[assignment]
+            self._holds_total = data["holds_total"]  # type: ignore[assignment]
+            self._holds_empty = data["holds_empty"]  # type: ignore[assignment]
+            self._credits = data["credits"]  # type: ignore[assignment]
+            self._cargo = data["cargo"]  # type: ignore[assignment]
+            last_sync_pos = pos
+
+        return last_sync_pos
+
     def _extract_player_state(self, text: str) -> None:
-        # Track turns remaining
-        turns_re = re.compile(r"(\d+)\s+turns? left")
-        for m in turns_re.finditer(text):
-            self._turns_remaining = int(m.group(1))
+        # Track turns — process all turn-related patterns in document order
+        turn_patterns = [
+            (re.compile(r"(\d+)\s+turns? left"), "set"),
+            (re.compile(r"You have\s+(\d+)\s+turns? this Stardate"), "set"),
+            (re.compile(r"You don't have any turns left"), "zero"),
+            (re.compile(r"You recover\s+(\d+)\s+of your turns"), "add"),
+        ]
+        # Collect all matches with positions
+        turn_events: list[tuple[int, str, int]] = []
+        for pattern, action in turn_patterns:
+            for m in pattern.finditer(text):
+                if action == "zero":
+                    turn_events.append((m.start(), action, 0))
+                elif action == "add":
+                    turn_events.append((m.start(), action, int(m.group(1))))
+                else:
+                    turn_events.append((m.start(), action, int(m.group(1))))
+        # Apply in document order
+        for _, action, value in sorted(turn_events):
+            if action == "set" or action == "zero":
+                self._turns_remaining = value
+            elif action == "add":
+                self._turns_remaining = (self._turns_remaining or 0) + value
 
         # Track credits
-        credits_re = re.compile(r"You have\s+([0-9,]+)\s+credits")
-        for m in credits_re.finditer(text):
+        for m in re.finditer(r"You have\s+([0-9,]+)\s+credits", text):
             self._credits = int(m.group(1).replace(",", ""))
 
         # Track empty holds
-        holds_re = re.compile(r"You have\s+[0-9,]+\s+credits and\s+(\d+)\s+empty cargo holds")
-        for m in holds_re.finditer(text):
+        for m in re.finditer(r"You have\s+[0-9,]+\s+credits and\s+(\d+)\s+empty cargo holds", text):
             self._holds_empty = int(m.group(1))
 
         # Track current sector from command prompt
-        prompt_re = re.compile(r"\[(\d+)\]\s*\(\?=Help\)")
-        for m in prompt_re.finditer(text):
+        for m in re.finditer(r"\[(\d+)\]\s*\(\?=Help\)", text):
             self._current_sector = int(m.group(1))
 
-        # Track purchases (cost basis)
-        # TODO(TW-1): implement cost basis tracking from haggling sequences
-
-        # Track sells
-
-        # Simple cargo tracking from "OnBoard" column in commerce reports
-        # Only keep the last set of OnBoard values (most recent port visit)
-        onboard_re = re.compile(
-            r"(Fuel Ore|Organics|Equipment)\s+(?:Selling|Buying)\s+\d+\s+\d+%\s+(\d+)"
+    def _extract_transactions(self, text: str) -> None:
+        """Parse buy/sell transactions for cargo tracking with cost basis."""
+        # Match: "How many holds of X do you want to buy/sell [N]?"
+        # followed by "Agreed, N units." within a short window (no intervening prompts)
+        prompt_re = re.compile(
+            r"How many holds of (Fuel Ore|Organics|Equipment) do you want to (buy|sell) \[(\d+)\]\?"
         )
-        # Find all commerce report positions to isolate the last one
-        commerce_positions = [m.start() for m in re.finditer(r"Commerce report for", text)]
-        last_commerce_pos = commerce_positions[-1] if commerce_positions else -1
 
-        # Find the last "empty cargo holds" line — if it's after the last commerce
-        # report, it's the authoritative state (a trade happened after the report)
-        holds_matches = list(re.finditer(
-            r"You have\s+[0-9,]+\s+credits and\s+(\d+)\s+empty cargo holds", text
-        ))
-        last_holds_pos = holds_matches[-1].start() if holds_matches else -1
+        for m in prompt_re.finditer(text):
+            # Only look for "Agreed" within 100 chars — if it's not there, trade was declined
+            window = text[m.end() : m.end() + 100]
+            agreed_m = re.search(r"Agreed,\s*(\d+)\s*units?", window)
+            if not agreed_m:
+                continue
 
-        if last_commerce_pos >= 0 and last_holds_pos > last_commerce_pos:
-            # A credits/holds line after the last commerce report means
-            # the cargo changed — use empty holds count to determine state
-            empty = int(holds_matches[-1].group(1))
-            if empty > 0:
-                # Player has empty holds after the report — cargo was sold
-                self._cargo = []
-                self._holds_empty = empty
+            commodity = _parse_commodity_type(m.group(1))
+            direction = m.group(2)
+            quantity = int(agreed_m.group(1))
+
+            # Find the final accepted price after "Agreed"
+            after_agreed = text[m.end() + agreed_m.end() : m.end() + agreed_m.end() + 500]
+            price = _extract_final_price(after_agreed, direction)
+
+            if direction == "buy":
+                cost_per_unit = price / quantity if price > 0 else 0.0
+                self._cargo = _merge_cargo(self._cargo, commodity, quantity, cost_per_unit)
             else:
-                # Holds are full — use the commerce report OnBoard values
-                last_report_text = text[last_commerce_pos:]
-                cargo: list[CargoHold] = []
-                for m in onboard_re.finditer(last_report_text):
-                    qty = int(m.group(2))
-                    if qty > 0:
-                        commodity = _parse_commodity_type(m.group(1))
-                        cargo.append(CargoHold(commodity=commodity, quantity=qty, cost_per_unit=0.0))
-                self._cargo = cargo
-        elif last_commerce_pos >= 0:
-            last_report_text = text[last_commerce_pos:]
-            cargo = []
-            for m in onboard_re.finditer(last_report_text):
-                qty = int(m.group(2))
-                if qty > 0:
-                    commodity = _parse_commodity_type(m.group(1))
-                    cargo.append(CargoHold(commodity=commodity, quantity=qty, cost_per_unit=0.0))
-            self._cargo = cargo
+                self._cargo = _remove_cargo(self._cargo, commodity, quantity)
 
     def _extract_chat(self, text: str) -> None:
         # Sub-space radio messages
@@ -302,3 +380,78 @@ def _parse_commodity_type(name: str) -> CommodityType:
         "Equipment": CommodityType.EQUIPMENT,
     }
     return mapping[name]
+
+
+def _parse_holds_description(desc: str) -> list[CargoHold]:
+    """Parse holds description like 'Fuel Ore=20 Empty=48' into cargo list."""
+    cargo: list[CargoHold] = []
+    for name, ctype in [
+        ("Fuel Ore", CommodityType.FUEL_ORE),
+        ("Organics", CommodityType.ORGANICS),
+        ("Equipment", CommodityType.EQUIPMENT),
+    ]:
+        m = re.search(rf"{name}=(\d+)", desc)
+        if m:
+            cargo.append(CargoHold(commodity=ctype, quantity=int(m.group(1)), cost_per_unit=0.0))
+    return cargo
+
+
+def _extract_final_price(text_after_agreed: str, direction: str) -> float:
+    """Extract the final accepted price from haggling text.
+
+    Looks for the last price mentioned before an acceptance message.
+    """
+    # Price offers: "We'll sell/buy them for N credits." or "Our final offer is N credits."
+    price_re = re.compile(r"(?:for|is)\s+([0-9,]+)\s+credits")
+    # Acceptance messages that end the haggling
+    accept_re = re.compile(
+        r"(?:Very well|Agreed!|You are a shrewd|SOLD!|Cheapskate|Oh well|"
+        r"If only more honest|You insult my intelligence)"
+    )
+
+    accept_m = accept_re.search(text_after_agreed)
+    if not accept_m:
+        return 0.0
+
+    # Find the last price before the acceptance
+    search_region = text_after_agreed[: accept_m.start()]
+    prices = list(price_re.finditer(search_region))
+    if prices:
+        return float(prices[-1].group(1).replace(",", ""))
+    return 0.0
+
+
+def _merge_cargo(
+    cargo: list[CargoHold], commodity: CommodityType, quantity: int, cost_per_unit: float
+) -> list[CargoHold]:
+    """Add purchased cargo, merging with existing holdings using weighted average cost."""
+    result: list[CargoHold] = []
+    merged = False
+    for hold in cargo:
+        if hold.commodity == commodity:
+            total_qty = hold.quantity + quantity
+            avg_cost = (
+                (hold.quantity * hold.cost_per_unit + quantity * cost_per_unit) / total_qty
+                if total_qty > 0
+                else 0.0
+            )
+            result.append(CargoHold(commodity=commodity, quantity=total_qty, cost_per_unit=avg_cost))
+            merged = True
+        else:
+            result.append(hold)
+    if not merged:
+        result.append(CargoHold(commodity=commodity, quantity=quantity, cost_per_unit=cost_per_unit))
+    return result
+
+
+def _remove_cargo(cargo: list[CargoHold], commodity: CommodityType, quantity: int) -> list[CargoHold]:
+    """Remove sold cargo from holdings."""
+    result: list[CargoHold] = []
+    for hold in cargo:
+        if hold.commodity == commodity:
+            remaining = hold.quantity - quantity
+            if remaining > 0:
+                result.append(CargoHold(commodity=commodity, quantity=remaining, cost_per_unit=hold.cost_per_unit))
+        else:
+            result.append(hold)
+    return result

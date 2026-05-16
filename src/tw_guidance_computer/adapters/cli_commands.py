@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import final
 
 from tw_guidance_computer.application.find_nearby_ports import FindNearbyPorts
+from tw_guidance_computer.application.find_nearest_pair import FindNearestPair
 from tw_guidance_computer.application.find_path import FindPath
 from tw_guidance_computer.application.find_sell_locations import FindSellLocations
 from tw_guidance_computer.application.find_trade_pairs import FindTradePairs
@@ -188,3 +189,17 @@ class CliAdapter:
 
         for msg in reversed(messages):
             print(f"  [{msg.channel}] {msg.sender}: {msg.message}")
+
+    def nearest_pair(self, sector_id: int, limit: int = 5) -> None:
+        """Print nearest trade pairs to a sector."""
+        results = FindNearestPair(self._store).execute(sector_id, limit)
+        if not results:
+            print(f"  No trade pairs reachable from sector {sector_id}")
+            return
+
+        print(f"  Nearest trade pairs to sector {sector_id}:")
+        for hops, p in results:
+            line = f"[{p.sector_a}] ({p.port_a_type}) <-> [{p.sector_b}] ({p.port_b_type})  [{p.complementary_count}/3]"
+            print(f"\n    {hops} hops - {line}")
+            for r in p.routes:
+                print(f"      {r}")

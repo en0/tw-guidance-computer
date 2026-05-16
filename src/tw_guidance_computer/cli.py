@@ -42,6 +42,10 @@ def main() -> None:
     p.add_argument("sector", type=int)
     p.add_argument("-n", "--hops", type=int, default=5)
 
+    p = sub.add_parser("nearest-pair", help="Find nearest trade pair to a sector")
+    p.add_argument("sector", type=int)
+    p.add_argument("-n", "--limit", type=int, default=5)
+
     p = sub.add_parser("sell", help="Find where to sell current cargo")
     p.add_argument("-n", "--hops", type=int, default=10)
 
@@ -75,6 +79,8 @@ def main() -> None:
                 cli.search(args.pattern)
             case "nearby":
                 cli.nearby(args.sector, args.hops)
+            case "nearest-pair":
+                cli.nearest_pair(args.sector, args.limit)
             case "sell":
                 cli.sell(args.hops)
             case "chat":
