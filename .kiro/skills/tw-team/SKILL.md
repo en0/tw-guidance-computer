@@ -9,6 +9,7 @@ Shared knowledge that persists across agent sessions.
 
 ## Structure
 
+- `knowledge/product/` — Current product state: HUD layout, CLI commands, data flow, capabilities
 - `knowledge/parser-patterns/` — Discovered patterns in the TW2002 data stream
 - `knowledge/tw-mechanics/` — Game rules, formulas, behaviors
 - `knowledge/decisions/` — Architecture decisions and rejected approaches
