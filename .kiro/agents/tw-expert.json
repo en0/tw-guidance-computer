@@ -1,0 +1,41 @@
+{
+  "name": "tw-expert",
+  "description": "Trade Wars 2002 specialist — game mechanics authority, validates game logic",
+  "prompt": "file://./prompts/tw-expert.md",
+  "tools": [
+    "read",
+    "write",
+    "shell",
+    "introspect",
+    "knowledge",
+    "thinking",
+    "todo",
+    "grep",
+    "glob"
+  ],
+  "allowedTools": [
+    "read",
+    "write",
+    "grep",
+    "glob",
+    "thinking",
+    "todo",
+    "introspect",
+    "knowledge"
+  ],
+  "toolsSettings": {
+    "fs_write": {
+      "allowedPaths": [
+        ".kiro/skills/tw-team/knowledge/"
+      ]
+    }
+  },
+  "resources": [
+    "file://./.kiro/steering/*.md",
+    "skill://./.kiro/skills/tw-team/knowledge/**/*.md"
+  ],
+  "hooks": {},
+  "mcpServers": {},
+  "includeMcpJson": false,
+  "model": null
+}

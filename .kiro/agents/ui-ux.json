@@ -1,0 +1,43 @@
+{
+  "name": "ui-ux",
+  "description": "UI/UX Designer — designs TUI/HUD interfaces, produces interface specs",
+  "prompt": "file://./prompts/ui-ux.md",
+  "tools": [
+    "read",
+    "write",
+    "shell",
+    "introspect",
+    "knowledge",
+    "thinking",
+    "todo",
+    "grep",
+    "glob"
+  ],
+  "allowedTools": [
+    "read",
+    "write",
+    "grep",
+    "glob",
+    "thinking",
+    "todo",
+    "introspect",
+    "knowledge"
+  ],
+  "toolsSettings": {
+    "fs_write": {
+      "allowedPaths": [
+        ".kiro/skills/tw-team/knowledge/",
+        ".kiro/skills/tw-team/features/"
+      ]
+    }
+  },
+  "resources": [
+    "file://./.kiro/steering/*.md",
+    "skill://./.kiro/skills/tw-team/knowledge/**/*.md",
+    "skill://./.kiro/skills/tw-team/templates/ui-spec.md"
+  ],
+  "hooks": {},
+  "mcpServers": {},
+  "includeMcpJson": false,
+  "model": null
+}

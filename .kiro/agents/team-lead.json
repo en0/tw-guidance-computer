@@ -1,0 +1,54 @@
+{
+  "name": "team-lead",
+  "description": "Team Lead — single point of contact for feature work, orchestrates the dev team",
+  "prompt": "file://./prompts/team-lead.md",
+  "tools": [
+    "read",
+    "write",
+    "shell",
+    "introspect",
+    "knowledge",
+    "thinking",
+    "todo",
+    "delegate",
+    "grep",
+    "glob"
+  ],
+  "allowedTools": [
+    "read",
+    "write",
+    "shell",
+    "delegate",
+    "grep",
+    "glob",
+    "thinking",
+    "todo",
+    "introspect",
+    "knowledge"
+  ],
+  "toolsSettings": {
+    "fs_write": {
+      "allowedPaths": [
+        ".kiro/skills/tw-team/features/",
+        ".kiro/skills/tw-team/knowledge/"
+      ]
+    },
+    "execute_bash": {
+      "allowedCommands": [
+        "^uv run pytest",
+        "^uv run mypy",
+        "^uv run ruff"
+      ]
+    }
+  },
+  "resources": [
+    "file://./.kiro/steering/*.md",
+    "skill://./docs/codespecs/**/*.md",
+    "skill://./.kiro/skills/tw-team/**/*.md",
+    "skill://./.kiro/agents/prompts/*.md"
+  ],
+  "hooks": {},
+  "mcpServers": {},
+  "includeMcpJson": false,
+  "model": null
+}

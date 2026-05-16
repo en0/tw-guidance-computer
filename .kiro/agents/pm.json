@@ -1,0 +1,43 @@
+{
+  "name": "pm",
+  "description": "Product Manager — refines ideas into feature designs, validates deliverables",
+  "prompt": "file://./prompts/pm.md",
+  "tools": [
+    "read",
+    "write",
+    "shell",
+    "introspect",
+    "knowledge",
+    "thinking",
+    "todo",
+    "grep",
+    "glob"
+  ],
+  "allowedTools": [
+    "read",
+    "write",
+    "grep",
+    "glob",
+    "thinking",
+    "todo",
+    "introspect",
+    "knowledge"
+  ],
+  "toolsSettings": {
+    "fs_write": {
+      "allowedPaths": [
+        ".kiro/skills/tw-team/knowledge/",
+        ".kiro/skills/tw-team/features/"
+      ]
+    }
+  },
+  "resources": [
+    "file://./.kiro/steering/*.md",
+    "skill://./.kiro/skills/tw-team/**/*.md",
+    "skill://./docs/future-ideas.md"
+  ],
+  "hooks": {},
+  "mcpServers": {},
+  "includeMcpJson": false,
+  "model": null
+}

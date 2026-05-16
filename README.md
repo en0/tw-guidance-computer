@@ -90,6 +90,8 @@ uv run mypy src/        # type check
 uv run ruff check src/  # lint
 ```
 
+This project uses an AI development team for new features. See [`.kiro/README.md`](.kiro/README.md) for the workflow.
+
 ## Data
 
 The SQLite database persists at `~/.local/share/tw-guidance-computer/game.db` and accumulates knowledge across sessions.

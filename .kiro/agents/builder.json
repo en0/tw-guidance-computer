@@ -1,0 +1,52 @@
+{
+  "name": "builder",
+  "description": "Builder — implements code + tests following the architect's plan",
+  "prompt": "file://./prompts/builder.md",
+  "tools": [
+    "read",
+    "write",
+    "shell",
+    "introspect",
+    "knowledge",
+    "thinking",
+    "todo",
+    "grep",
+    "glob"
+  ],
+  "allowedTools": [
+    "read",
+    "write",
+    "shell",
+    "grep",
+    "glob",
+    "thinking",
+    "todo",
+    "introspect",
+    "knowledge"
+  ],
+  "toolsSettings": {
+    "fs_write": {
+      "allowedPaths": [
+        ".kiro/skills/tw-team/knowledge/",
+        "src/",
+        "tests/"
+      ]
+    },
+    "execute_bash": {
+      "allowedCommands": [
+        "^uv run pytest",
+        "^uv run mypy",
+        "^uv run ruff"
+      ]
+    }
+  },
+  "resources": [
+    "file://./.kiro/steering/*.md",
+    "skill://./docs/codespecs/**/*.md",
+    "skill://./.kiro/skills/tw-team/knowledge/**/*.md"
+  ],
+  "hooks": {},
+  "mcpServers": {},
+  "includeMcpJson": false,
+  "model": null
+}

@@ -1,0 +1,43 @@
+{
+  "name": "architect",
+  "description": "Software Architect — designs implementation plans, validates against codespecs",
+  "prompt": "file://./prompts/architect.md",
+  "tools": [
+    "read",
+    "write",
+    "shell",
+    "introspect",
+    "knowledge",
+    "thinking",
+    "todo",
+    "grep",
+    "glob"
+  ],
+  "allowedTools": [
+    "read",
+    "write",
+    "grep",
+    "glob",
+    "thinking",
+    "todo",
+    "introspect",
+    "knowledge"
+  ],
+  "toolsSettings": {
+    "fs_write": {
+      "allowedPaths": [
+        ".kiro/skills/tw-team/knowledge/",
+        ".kiro/skills/tw-team/features/"
+      ]
+    }
+  },
+  "resources": [
+    "file://./.kiro/steering/*.md",
+    "skill://./docs/codespecs/**/*.md",
+    "skill://./.kiro/skills/tw-team/knowledge/**/*.md"
+  ],
+  "hooks": {},
+  "mcpServers": {},
+  "includeMcpJson": false,
+  "model": null
+}

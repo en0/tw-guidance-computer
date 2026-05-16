@@ -1,0 +1,42 @@
+{
+  "name": "parser-expert",
+  "description": "Parser Expert — ANSI data stream specialist, builds pattern knowledge base",
+  "prompt": "file://./prompts/parser-expert.md",
+  "tools": [
+    "read",
+    "write",
+    "shell",
+    "introspect",
+    "knowledge",
+    "thinking",
+    "todo",
+    "grep",
+    "glob"
+  ],
+  "allowedTools": [
+    "read",
+    "write",
+    "grep",
+    "glob",
+    "thinking",
+    "todo",
+    "introspect",
+    "knowledge"
+  ],
+  "toolsSettings": {
+    "fs_write": {
+      "allowedPaths": [
+        ".kiro/skills/tw-team/knowledge/"
+      ]
+    }
+  },
+  "resources": [
+    "file://./.kiro/steering/*.md",
+    "skill://./.kiro/skills/tw-team/knowledge/parser-patterns/**/*.md",
+    "skill://./docs/codespecs/**/*.md"
+  ],
+  "hooks": {},
+  "mcpServers": {},
+  "includeMcpJson": false,
+  "model": null
+}
