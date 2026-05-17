@@ -34,3 +34,32 @@
 ## Watch Mode
 - Auto-re-parse on file change without restarting the HUD
 - Efficient incremental parsing (track byte offset, only parse new data)
+
+## Shared Sector Intelligence
+- Share sector topology (ports, planets, stardocks, warp connections) between allied players
+- Mechanism: CSV reports pushed to a shared bucket (S3-compatible, specifics TBD)
+- Each player's system periodically checks for new reports and imports them
+- Ad-hoc CLI commands for manual push/pull (`tw intel push`, `tw intel pull` or similar)
+- Source identifier: each row in the DB tracks who discovered it; only export YOUR discoveries (prevents infinite data inflation when re-sharing)
+- Conflict resolution: server timestamp on port commodity data, freshest wins, local data breaks ties
+- Trust model: corp allies only (shared bucket credentials)
+- Granularity: full snapshot per push (revisit if performance becomes an issue)
+- Player identity: parsed from session log; feature gated if identity not yet captured
+- Scope: topology only — NOT player state (ship, cargo, credits, turns)
+- Gate behind experimental feature flag (see "Experimental Feature Gates" below)
+
+## Experimental Feature Gates
+- CLI flag at startup to opt in to experimental features (e.g., `--experimental` or `--enable <feature>`)
+- Allows testing incomplete or risky features without affecting stable workflow
+- First candidate: Shared Sector Intelligence
+
+## Low-Turn Safe Harbor Advisor
+- When player runs low on turns, HUD lists nearby friendly planets and Federation space with shortest hops
+- Helps the player find a safe place to park before logging off
+- Needs: turn threshold detection, planet ownership/friendliness data, Federation sector identification, BFS from current position
+
+## Multi-Server Configuration
+- Config file supporting multiple TW2002 servers (different hosts, different databases)
+- Each server gets its own database, player identity, and potentially different sharing groups
+- Separate from shared intelligence but related (sharing is per-server)
+- Needs independent scoping — captured here for future design work
