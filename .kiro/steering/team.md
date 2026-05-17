@@ -9,7 +9,7 @@ This project uses an AI development team with adversarial validation loops.
 
 | Agent | Role | Focus |
 |-------|------|-------|
-| **Team Lead** | Orchestrator | Single point of contact, drives pipeline, delegates to specialists |
+| **Team Lead** | Orchestrator | Single point of contact, drives pipeline, assigns work to specialists |
 | PM | Product Manager | Refines ideas, produces feature design docs, validates deliverables |
 | TW Expert | Trade Wars 2002 Specialist | Game mechanics authority, researches TW2002, validates game logic |
 | Architect | Software Architect | Designs implementation plans, validates against codespecs, identifies parallel work |

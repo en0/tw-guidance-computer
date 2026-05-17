@@ -3,23 +3,21 @@
   "description": "UI/UX Designer — designs TUI/HUD interfaces, produces interface specs",
   "prompt": "file://./prompts/ui-ux.md",
   "tools": [
-    "read",
-    "write",
-    "shell",
+    "fs_read",
+    "fs_write",
     "introspect",
     "knowledge",
     "thinking",
-    "todo",
+    "todo_list",
     "grep",
     "glob"
   ],
   "allowedTools": [
-    "read",
-    "write",
+    "fs_read",
     "grep",
     "glob",
     "thinking",
-    "todo",
+    "todo_list",
     "introspect",
     "knowledge"
   ],

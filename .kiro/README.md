@@ -4,7 +4,7 @@ This project uses a team of specialized AI agents with adversarial validation lo
 
 ## Quick Start
 
-Your primary agent is **team-lead** (`/chat agent team-lead`). It orchestrates everything. You talk to it, it delegates to specialists internally.
+Your primary agent is **team-lead** (`/chat agent team-lead`). It orchestrates everything. You talk to it, it spawns specialist sub-agents internally.
 
 For direct specialist access (rare — usually the team lead handles this):
 
@@ -13,7 +13,7 @@ For direct specialist access (rare — usually the team lead handles this):
 | `ui-ux` | Working through interface design interactively |
 | `parser-expert` | Debugging a specific parse failure with session data |
 
-The team lead delegates to these internally — you don't normally switch:
+The team lead spawns these as sub-agents internally — you don't normally switch:
 
 | Agent | Role |
 |-------|------|
@@ -34,7 +34,7 @@ Then describe what you want — use cases, pain points, rough ideas. The team le
 
 ### What happens next (you don't drive this — team lead does)
 
-1. **Ideation** — Team lead delegates to PM + TW Expert. They refine your idea into a feature design with your use cases captured verbatim. Adversarial loop runs internally.
+1. **Ideation** — Team lead assigns PM + TW Expert sub-agents. They refine your idea into a feature design with your use cases captured verbatim. Adversarial loop runs internally.
 2. **Your approval** — Team lead presents the feature design. You approve or request changes.
 3. **UI/UX** (if needed) — Team lead facilitates you working through the interface design with the UI/UX agent.
 4. **Parser consultation** (if needed) — Parser Expert analyzes session logs for new patterns.

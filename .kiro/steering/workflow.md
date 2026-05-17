@@ -8,21 +8,21 @@ inclusion: always
 ```
 Ian ←→ Team Lead (single point of contact)
               │
-              ├─ delegates to PM + TW Expert → Feature Design
+              ├─ assigns to PM + TW Expert → Feature Design
               │       └─ adversarial loop (internal)
               │
               ├─ facilitates Ian ←→ UI/UX → Interface Spec
               │       └─ adversarial loop (internal)
               │
-              ├─ delegates to Architect → Implementation Plan
+              ├─ assigns to Architect → Implementation Plan
               │       └─ adversarial loop (internal)
               │
               ├─ surfaces tradeoffs → Ian approves
               │
-              ├─ delegates to Builders (parallel) → Code + Tests
+              ├─ spawns Builders (parallel) → Code + Tests
               │       └─ adversarial loop per builder (internal)
               │
-              └─ delegates validation (Architect → PM) → reports to Ian
+              └─ assigns validation (Architect → PM) → reports to Ian
 ```
 
 Ian only interacts at approval gates and when tradeoffs need decisions.
@@ -32,8 +32,8 @@ Ian only interacts at approval gates and when tradeoffs need decisions.
 ### 1. Ideation (Ian → Team Lead → PM)
 - Ian provides use cases, pain points, or rough ideas to Team Lead
 - Team Lead assigns feature number, creates `features/NNN-slug/` directory
-- Team Lead delegates to PM to refine into a feature design
-- PM consults TW Expert (via Team Lead delegation) for game mechanic accuracy
+- Team Lead spawns PM sub-agent to refine into a feature design
+- PM consults TW Expert (via Team Lead spawning sub-agent) for game mechanic accuracy
 - Team Lead runs adversarial loop on the design internally
 - Team Lead presents approved design to Ian for sign-off
 - **Output**: Feature Design Document (`features/NNN-slug/design.md`)
@@ -47,14 +47,14 @@ Ian only interacts at approval gates and when tradeoffs need decisions.
 - **Output**: UI Spec (`features/NNN-slug/ui-spec.md`)
 
 ### 2b. Parser Consultation (if new data requirements identified)
-- Team Lead delegates to Parser Expert to analyze session data for required patterns
+- Team Lead spawns Parser Expert sub-agent to analyze session data for required patterns
 - Parser Expert documents findings in `knowledge/parser-patterns/`
 - Team Lead runs adversarial loop on parser findings (validates regex accuracy, edge cases)
 - Findings feed into the Architect's implementation plan
 - **Output**: Knowledge base entries
 
 ### 3. Implementation Planning (Team Lead → Architect)
-- Team Lead delegates to Architect with approved design + UI spec + parser findings
+- Team Lead spawns Architect sub-agent with approved design + UI spec + parser findings
 - Architect produces implementation plan with work units and parallel groups
 - Architect validates against codespecs
 - Team Lead runs adversarial loop on the plan
@@ -70,8 +70,8 @@ Ian only interacts at approval gates and when tradeoffs need decisions.
 - **Output**: Code + tests per work unit
 
 ### 5. Validation (Team Lead → Architect → PM → Ian)
-- Team Lead delegates to Architect: validate all code against plan and codespecs
-- Team Lead delegates to PM: validate against feature design and use cases
+- Team Lead spawns Architect sub-agent: validate all code against plan and codespecs
+- Team Lead spawns PM sub-agent: validate against feature design and use cases
 - Architect FAIL → issues back to builders for revision
 - PM FAIL → escalate to Architect to revise plan, then rebuild
 - Max 2 revision cycles before escalating to Ian

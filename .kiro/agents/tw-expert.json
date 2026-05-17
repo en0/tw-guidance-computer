@@ -3,23 +3,21 @@
   "description": "Trade Wars 2002 specialist — game mechanics authority, validates game logic",
   "prompt": "file://./prompts/tw-expert.md",
   "tools": [
-    "read",
-    "write",
-    "shell",
+    "fs_read",
+    "fs_write",
     "introspect",
     "knowledge",
     "thinking",
-    "todo",
+    "todo_list",
     "grep",
     "glob"
   ],
   "allowedTools": [
-    "read",
-    "write",
+    "fs_read",
     "grep",
     "glob",
     "thinking",
-    "todo",
+    "todo_list",
     "introspect",
     "knowledge"
   ],

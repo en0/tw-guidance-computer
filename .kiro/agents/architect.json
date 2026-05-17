@@ -3,23 +3,21 @@
   "description": "Software Architect — designs implementation plans, validates against codespecs",
   "prompt": "file://./prompts/architect.md",
   "tools": [
-    "read",
-    "write",
-    "shell",
+    "fs_read",
+    "fs_write",
     "introspect",
     "knowledge",
     "thinking",
-    "todo",
+    "todo_list",
     "grep",
     "glob"
   ],
   "allowedTools": [
-    "read",
-    "write",
+    "fs_read",
     "grep",
     "glob",
     "thinking",
-    "todo",
+    "todo_list",
     "introspect",
     "knowledge"
   ],

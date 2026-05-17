@@ -3,26 +3,24 @@
   "description": "Team Lead — single point of contact for feature work, orchestrates the dev team",
   "prompt": "file://./prompts/team-lead.md",
   "tools": [
-    "read",
-    "write",
-    "shell",
+    "fs_read",
+    "fs_write",
+    "execute_bash",
     "introspect",
     "knowledge",
     "thinking",
-    "todo",
-    "delegate",
+    "todo_list",
+    "use_subagent",
     "grep",
     "glob"
   ],
   "allowedTools": [
-    "read",
-    "write",
-    "shell",
-    "delegate",
+    "fs_read",
+    "use_subagent",
     "grep",
     "glob",
     "thinking",
-    "todo",
+    "todo_list",
     "introspect",
     "knowledge"
   ],
@@ -39,6 +37,10 @@
         "^uv run mypy",
         "^uv run ruff"
       ]
+    },
+    "subagent": {
+      "availableAgents": ["pm", "tw-expert", "architect", "ui-ux", "parser-expert", "builder"],
+      "trustedAgents": ["pm", "tw-expert", "architect", "ui-ux", "parser-expert", "builder"]
     }
   },
   "resources": [

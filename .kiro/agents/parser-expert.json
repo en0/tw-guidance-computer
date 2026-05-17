@@ -3,23 +3,21 @@
   "description": "Parser Expert — ANSI data stream specialist, builds pattern knowledge base",
   "prompt": "file://./prompts/parser-expert.md",
   "tools": [
-    "read",
-    "write",
-    "shell",
+    "fs_read",
+    "fs_write",
     "introspect",
     "knowledge",
     "thinking",
-    "todo",
+    "todo_list",
     "grep",
     "glob"
   ],
   "allowedTools": [
-    "read",
-    "write",
+    "fs_read",
     "grep",
     "glob",
     "thinking",
-    "todo",
+    "todo_list",
     "introspect",
     "knowledge"
   ],
