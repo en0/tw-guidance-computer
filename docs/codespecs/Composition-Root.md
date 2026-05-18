@@ -14,11 +14,11 @@ This is the application-level equivalent of what fixture-centralized constructio
 
 ## Rules
 
-1. **One composition root per application.** It's the only code that imports from all three layers simultaneously. Everything else respects the dependency rule.
+1. **One composition root per project.** A single module centralizes all construction logic. Entry points (CLI, HUD, server) are thin shells that configure and invoke the root — they don't construct use cases or adapters themselves.
 
-2. **The root's name and shape vary by application type.** `server.py` for a long-running server, `main.py` for a CLI tool, a bootstrap function for a consumer. The name doesn't matter. The isolation does.
+2. **Entry points are thin shells.** `cli.py`, `hud.py`, `server.py` — each parses its own input (CLI args, config files) and passes configuration to the composition root. They don't construct use cases or adapters directly.
 
-3. **Constructor injection is the default wiring mechanism.** Dependencies are passed as constructor arguments. No service locators, no global registries, no module-level singletons.
+3. **Constructor injection is the wiring mechanism.** Dependencies are passed as constructor arguments. No service locators, no global registries, no module-level singletons. Nothing outside the composition root constructs a use case or adapter — if code needs a collaborator, it receives one through its constructor.
 
 4. **Dynamic binding is fine — it still happens in the root.** If the application needs to select implementations based on CLI flags, environment variables, or config files, that decision logic lives in the composition root. The rest of the code doesn't know or care which implementation was chosen.
 
@@ -86,7 +86,7 @@ class GameEngine:
 
 The container is still constructed in one place. The consumer influences *what* gets wired, but the *where* is fixed.
 
-### Typed container — grouping per-instance dependencies
+### Typed container — grouping related dependencies
 
 ```python
 @dataclass(frozen=True)

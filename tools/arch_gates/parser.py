@@ -7,7 +7,7 @@ from pathlib import Path
 from tools.arch_gates.models import GateContext, Layer, ParsedModule
 
 SOURCE_LAYER_DIRS = {d.value: d for d in Layer if d in (Layer.DOMAIN, Layer.APPLICATION, Layer.ADAPTERS)}
-ROOT_FILES = {"hud.py", "cli.py", "__main__.py", "__init__.py"}
+ROOT_FILES = {"compose.py", "hud.py", "cli.py", "__main__.py", "__init__.py"}
 
 # Package prefix to strip from absolute imports before layer classification.
 # Set this to the top-level package name used in import statements.

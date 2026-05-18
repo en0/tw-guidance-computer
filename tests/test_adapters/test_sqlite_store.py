@@ -2,7 +2,7 @@
 
 import pytest
 
-from tw_guidance_computer.adapters.sqlite_store import SqliteGameStateStore
+from tw_guidance_computer.adapters.outbound.sqlite_store import SqliteGameStateStore
 from tw_guidance_computer.domain.models import (
     CargoHold,
     ChatMessage,

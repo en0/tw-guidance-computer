@@ -1,4 +1,4 @@
-"""Composition root for the TW Guidance Computer CLI query tool."""
+"""Entry point for the TW Guidance Computer CLI query tool."""
 
 from __future__ import annotations
 
@@ -6,9 +6,8 @@ import argparse
 import sys
 from pathlib import Path
 
-from tw_guidance_computer.adapters.cli_commands import CliAdapter
-from tw_guidance_computer.adapters.sqlite_store import SqliteGameStateStore
-from tw_guidance_computer.domain.exceptions import GuidanceError
+from tw_guidance_computer.adapters.inbound.cli_commands import CliAdapter
+from tw_guidance_computer.compose import AppContext
 
 DEFAULT_DB_PATH = Path.home() / ".local" / "share" / "tw-guidance-computer" / "game.db"
 
@@ -64,8 +63,8 @@ def main() -> None:
         print(f"No database found at {args.db}. Run tw-hud first to populate it.", file=sys.stderr)
         sys.exit(1)
 
-    store = SqliteGameStateStore(args.db)
-    cli = CliAdapter(store)
+    ctx = AppContext(db_path=args.db)
+    cli = CliAdapter(ctx.use_cases)
 
     try:
         match args.command:
@@ -91,8 +90,5 @@ def main() -> None:
                 cli.chat()
             case "sector-art":
                 cli.sector_art(args.sector)
-    except GuidanceError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
     finally:
-        store.close()
+        ctx.close()

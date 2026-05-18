@@ -1,7 +1,7 @@
 """Tests for the log reader adapter."""
 
 
-from tw_guidance_computer.adapters.log_reader import TailLogReader, strip_ansi
+from tw_guidance_computer.adapters.outbound.log_reader import TailLogReader, strip_ansi
 
 
 class TestStripAnsi:

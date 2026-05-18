@@ -41,7 +41,7 @@ class TestRenderSectorArt:
 
         assert len(grid) == 14
         # Port art should add non-space characters beyond starfield
-        non_space = sum(1 for row in grid for ch, _ in row if ch != " ")
+        non_space = sum(1 for row in grid for cell in row if cell.char != " ")
         assert non_space > 20
 
     def test_port_with_planet(self, render_sector_art, mock_store):

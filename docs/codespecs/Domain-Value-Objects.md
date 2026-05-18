@@ -14,7 +14,7 @@ Frozen dataclasses solve both problems. Immutability means no spooky action at a
 
 1. **`@dataclass(frozen=True)` for all value objects.** No exceptions. Immutability is not optional for value objects.
 
-2. **Validate in `__post_init__`.** If a field has constraints (non-empty, positive, valid range), enforce them at construction. Raise a domain exception or `ValueError` — never let an invalid object exist.
+2. **Every value object validates in `__post_init__`.** All fields with meaningful constraints (non-empty, positive, valid range, non-negative) must be enforced at construction time. This applies regardless of how or where the object is constructed — the domain layer does not know its callers and cannot assume valid input. Value objects are part of the domain's public interface; any code (adapters, use cases, tests, future modules) can construct them. Raise a domain exception on failure — never let an invalid object exist. See **Domain-Exception-Hierarchy.md**.
 
 3. **Do not mark value objects with `@final`.** There's no hidden mutable state to protect. Subclassing a frozen dataclass is safe and sometimes useful.
 
@@ -24,9 +24,11 @@ Frozen dataclasses solve both problems. Immutability means no spooky action at a
 
 6. **Enums live in the domain layer alongside value objects.** They're part of the domain vocabulary.
 
-7. **Value objects live in `domain/models.py` by default.** One file for small projects. When the model count grows, convert to a `domain/models/` sub-module with one file per model. Re-export all public types from `__init__.py` so import paths stay the same (`from my_app.domain.models import SearchQuery`). See **Hexagonal-Architecture.md** for the directory layout.
+7. **Type aliases live in `domain/models/types.py`.** Simple named types (e.g., `SectorId = int`, `JobPath = str`) that add semantic clarity without needing validation. One file for all aliases. `__init__.py` re-exports them alongside value objects.
 
-8. **Factory fixtures for testing.** Value objects are constructed via factory fixtures that return callables with sane defaults. Tests override only the fields relevant to the scenario. See **Fixture-Centralized-Construction.md**.
+8. **Value objects live in `domain/models/`, one file per model.** The `domain/models/` sub-module has one file per value object (or per tightly-coupled group). `__init__.py` re-exports all public types so consumers import `from my_app.domain.models import SearchQuery`. See **Hexagonal-Architecture.md** for the directory layout.
+
+9. **Factory fixtures for testing.** Value objects are constructed via factory fixtures that return callables with sane defaults. Tests override only the fields relevant to the scenario. See **Fixture-Centralized-Construction.md**.
 
 ## Examples
 

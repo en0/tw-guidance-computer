@@ -22,11 +22,13 @@ Keeping the hierarchy small and flat matters too. Deep exception trees with doze
 
 3. **Exceptions describe domain problems, not technical ones.** `JobNotFoundError` — yes. `Http404Error` — no. `QueryValidationError` — yes. `JsonDecodeError` — no.
 
-4. **Adapters translate all external exceptions.** Every `try/except` in an adapter catches the third-party exception and raises a domain exception with `from` to preserve the chain. No `requests.ConnectionError`, no `yaml.YAMLError`, no `json.JSONDecodeError` ever crosses the adapter boundary.
+4. **Every exceptional case maps to a domain concept.** No layer raises `ValueError`, `TypeError`, `KeyError`, or any other stdlib exception. If a value object's construction fails, that's a `ValidationError`. If a database file is missing, that's a `StorageUnavailableError`. Every failure mode the program can encounter has a name in the domain vocabulary — exceptions are first-class domain concepts, not afterthoughts.
 
-5. **Use `raise ... from e` to preserve the exception chain.** The domain exception is what callers see. The original exception is available via `__cause__` for debugging. Never swallow the original.
+5. **Adapters translate all external exceptions.** Every `try/except` in an adapter catches the third-party exception and raises a domain exception with `from` to preserve the chain. No `requests.ConnectionError`, no `yaml.YAMLError`, no `json.JSONDecodeError` ever crosses the adapter boundary.
 
-6. **Exceptions live in `domain/exceptions.py`.** One file. If you have so many exceptions that this file is hard to navigate, the hierarchy is probably too large.
+6. **Use `raise ... from e` to preserve the exception chain.** The domain exception is what callers see. The original exception is available via `__cause__` for debugging. Never swallow the original.
+
+7. **Exceptions live in `domain/exceptions.py`.** One file. If you have so many exceptions that this file is hard to navigate, the hierarchy is probably too large.
 
 ## Examples
 
@@ -113,4 +115,14 @@ def fetch(self, query):
     resp = self._session.get(url)  # ConnectionError can escape
     resp.raise_for_status()        # HTTPError can escape
     return resp.json()             # JSONDecodeError can escape
+
+# WRONG: domain raising a stdlib exception
+def __post_init__(self) -> None:
+    if self.sector_id < 1:
+        raise ValueError("sector_id must be positive")  # must be a domain exception
+
+# WRONG: application layer raising a stdlib exception
+def execute(self, name: str) -> Result:
+    if name not in self._mapping:
+        raise KeyError(name)  # must be a domain exception
 ```

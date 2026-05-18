@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.1
+
+### Architecture
+
+- **Mechanical architecture gates**: 13 boolean gates verify structural correctness on every commit
+  - Domain value objects validate invariants unconditionally
+  - Layer import rule enforced by AST analysis
+  - Exception boundaries verified at both adapter directions (inbound and outbound)
+- **Adapter split**: adapters/inbound/ and adapters/outbound/ replace flat adapter directory
+- **UseCases container moved to application layer**
+- **Untyped dicts replaced with proper dataclasses**
+- **All type: ignore comments eliminated from domain and application code**
+
 ## 0.3.0
 
 ### New Features

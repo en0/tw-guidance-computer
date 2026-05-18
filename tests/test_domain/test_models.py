@@ -2,6 +2,7 @@
 
 import pytest
 
+from tw_guidance_computer.domain.exceptions import ValidationError
 from tw_guidance_computer.domain.models import (
     CommodityType,
 )
@@ -43,19 +44,19 @@ class TestPlanet:
             planet.name = "other"  # type: ignore[misc]
 
     def test_invalid_sector_id(self, make_planet):
-        with pytest.raises(ValueError, match="sector_id must be positive"):
+        with pytest.raises(ValidationError, match="sector_id must be positive"):
             make_planet(sector_id=0)
 
     def test_empty_name(self, make_planet):
-        with pytest.raises(ValueError, match="name must not be empty"):
+        with pytest.raises(ValidationError, match="name must not be empty"):
             make_planet(name="   ")
 
     def test_invalid_planet_class_lowercase(self, make_planet):
-        with pytest.raises(ValueError, match="planet_class must be a single uppercase letter"):
+        with pytest.raises(ValidationError, match="planet_class must be a single uppercase letter"):
             make_planet(planet_class="m")
 
     def test_invalid_planet_class_multi_char(self, make_planet):
-        with pytest.raises(ValueError, match="planet_class must be a single uppercase letter"):
+        with pytest.raises(ValidationError, match="planet_class must be a single uppercase letter"):
             make_planet(planet_class="MM")
 
 

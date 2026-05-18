@@ -1,4 +1,4 @@
-"""Composition root for the TW Guidance Computer HUD service."""
+"""Entry point for the TW Guidance Computer HUD service."""
 
 from __future__ import annotations
 
@@ -6,10 +6,8 @@ import argparse
 import sys
 from pathlib import Path
 
-from tw_guidance_computer.adapters.log_reader import TailLogReader
-from tw_guidance_computer.adapters.sqlite_store import SqliteGameStateStore
-from tw_guidance_computer.adapters.tui import HudDisplay
-from tw_guidance_computer.application.parse_log_chunk import ParseLogChunk
+from tw_guidance_computer.adapters.inbound.tui import HudDisplay
+from tw_guidance_computer.compose import AppContext
 
 DEFAULT_DB_PATH = Path.home() / ".local" / "share" / "tw-guidance-computer" / "game.db"
 
@@ -35,22 +33,17 @@ def main() -> None:
         print(f"Error: log file not found: {args.logfile}", file=sys.stderr)
         sys.exit(1)
 
-    # Ensure DB directory exists
-    args.db.parent.mkdir(parents=True, exist_ok=True)
-
-    store = SqliteGameStateStore(args.db)
-    reader = TailLogReader(args.logfile)
-    log_parser = ParseLogChunk(store)
+    ctx = AppContext(db_path=args.db, log_path=args.logfile)
+    assert ctx.reader is not None
 
     # Optionally parse existing log content first
     if args.parse_existing:
-        full_text = reader.read_full()
-        log_parser.execute(full_text)
+        full_text = ctx.reader.read_full()
+        ctx.use_cases.parse_log_chunk.execute(full_text)
 
-    hud = HudDisplay(store=store, reader=reader, parser=log_parser)
+    hud = HudDisplay(reader=ctx.reader, use_cases=ctx.use_cases)
 
     try:
         hud.run()
     finally:
-        reader.close()
-        store.close()
+        ctx.close()

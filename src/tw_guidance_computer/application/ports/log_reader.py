@@ -15,6 +15,9 @@ class LogReader(Protocol):
 
         Returns:
             New text if available, None if no new data.
+
+        Raises:
+            LogReadError: If reading the log file fails.
         """
         ...
 

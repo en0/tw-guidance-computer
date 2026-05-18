@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass, field
 from typing import final
 
 from tw_guidance_computer.application.ports.game_state_store import GameStateStore
@@ -18,6 +19,18 @@ from tw_guidance_computer.domain.models import (
     TradeDirection,
     WarpConnection,
 )
+
+
+@dataclass
+class _SyncPoint:
+    """Parsed sync point data from <Info> or status bar."""
+
+    sector: int
+    turns: int
+    holds_total: int
+    holds_empty: int
+    credits: int
+    cargo: list[CargoHold] = field(default_factory=list)
 
 
 @final
@@ -217,7 +230,7 @@ class ParseLogChunk:
         last_sync_pos = 0
 
         # Collect all sync points with their positions, apply in document order
-        syncs: list[tuple[int, dict[str, object]]] = []
+        syncs: list[tuple[int, _SyncPoint]] = []
 
         # <Info> block
         info_re = re.compile(
@@ -233,14 +246,14 @@ class ParseLogChunk:
             holds_desc = m.group(4)
             cargo = _parse_holds_description(holds_desc)
             empty_m = re.search(r"Empty=(\d+)", holds_desc)
-            syncs.append((m.end(), {
-                "sector": int(m.group(1)),
-                "turns": int(m.group(2)),
-                "holds_total": int(m.group(3)),
-                "holds_empty": int(empty_m.group(1)) if empty_m else 0,
-                "credits": int(m.group(5).replace(",", "")),
-                "cargo": cargo,
-            }))
+            syncs.append((m.end(), _SyncPoint(
+                sector=int(m.group(1)),
+                turns=int(m.group(2)),
+                holds_total=int(m.group(3)),
+                holds_empty=int(empty_m.group(1)) if empty_m else 0,
+                credits=int(m.group(5).replace(",", "")),
+                cargo=cargo,
+            )))
 
         # Compact status bar
         bar_re = re.compile(
@@ -268,23 +281,23 @@ class ParseLogChunk:
                 bar_cargo.append(CargoHold(commodity=CommodityType.ORGANICS, quantity=org, cost_per_unit=0.0))
             if equ > 0:
                 bar_cargo.append(CargoHold(commodity=CommodityType.EQUIPMENT, quantity=equ, cost_per_unit=0.0))
-            syncs.append((m.end(), {
-                "sector": int(m.group(1)),
-                "turns": int(m.group(2).replace(",", "")),
-                "holds_total": holds_total,
-                "holds_empty": holds_total - (ore + org + equ + col),
-                "credits": int(m.group(3).replace(",", "")),
-                "cargo": bar_cargo,
-            }))
+            syncs.append((m.end(), _SyncPoint(
+                sector=int(m.group(1)),
+                turns=int(m.group(2).replace(",", "")),
+                holds_total=holds_total,
+                holds_empty=holds_total - (ore + org + equ + col),
+                credits=int(m.group(3).replace(",", "")),
+                cargo=bar_cargo,
+            )))
 
         # Apply in document order — last one wins
         for pos, data in sorted(syncs):
-            self._current_sector = data["sector"]  # type: ignore[assignment]
-            self._turns_remaining = data["turns"]  # type: ignore[assignment]
-            self._holds_total = data["holds_total"]  # type: ignore[assignment]
-            self._holds_empty = data["holds_empty"]  # type: ignore[assignment]
-            self._credits = data["credits"]  # type: ignore[assignment]
-            self._cargo = data["cargo"]  # type: ignore[assignment]
+            self._current_sector = data.sector
+            self._turns_remaining = data.turns
+            self._holds_total = data.holds_total
+            self._holds_empty = data.holds_empty
+            self._credits = data.credits
+            self._cargo = data.cargo
             last_sync_pos = pos
 
         return last_sync_pos

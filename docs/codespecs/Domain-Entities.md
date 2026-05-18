@@ -29,7 +29,7 @@ Entities differ from value objects in what they carry. Value objects are pure da
 
 6. **Behavior methods on mutable entities modify in place.** A `transition()` method updates internal state directly. Mark these methods clearly.
 
-7. **Entities live in `domain/models.py` alongside value objects.** Same location rules — one file by default, `domain/models/` sub-module with one file per model when the count grows. Re-export from `__init__.py`. See **Hexagonal-Architecture.md** for the directory layout.
+7. **Entities live in `domain/models/`, one file per model.** Same location rules as value objects — the `domain/models/` sub-module has one file per entity. `__init__.py` re-exports all public types. See **Hexagonal-Architecture.md** for the directory layout.
 
 8. **Factory fixtures for testing.** Same pattern as value objects — factory fixtures with sane defaults. See **Fixture-Centralized-Construction.md**.
 

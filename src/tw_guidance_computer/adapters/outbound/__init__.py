@@ -1,0 +1,1 @@
+"""Outbound adapters — implement ports."""

@@ -4,8 +4,8 @@ from tw_guidance_computer.domain.sector_art import (
     compose_scene,
     generate_planet_art,
     generate_port_art,
-    generate_starfield,
     generate_stardock_art,
+    generate_starfield,
 )
 
 
@@ -104,9 +104,9 @@ class TestComposeScene:
     def test_port_only(self):
         grid = compose_scene(80, 14, port_name="Test Port", has_planet=False, has_stardock=False, seed=42)
         # Should have non-space characters from port art
-        non_space = sum(1 for row in grid for ch, _ in row if ch != " ")
+        non_space = sum(1 for row in grid for cell in row if cell.char != " ")
         empty_grid = compose_scene(80, 14, port_name=None, has_planet=False, has_stardock=False, seed=42)
-        empty_non_space = sum(1 for row in empty_grid for ch, _ in row if ch != " ")
+        empty_non_space = sum(1 for row in empty_grid for cell in row if cell.char != " ")
         assert non_space > empty_non_space
 
     def test_full_scene(self):

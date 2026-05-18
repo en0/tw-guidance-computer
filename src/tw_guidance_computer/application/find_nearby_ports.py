@@ -6,7 +6,7 @@ from collections import defaultdict, deque
 from typing import final
 
 from tw_guidance_computer.application.ports.game_state_store import GameStateStore
-from tw_guidance_computer.domain.models import Port
+from tw_guidance_computer.domain.models import NearbyPort
 
 
 @final
@@ -21,7 +21,7 @@ class FindNearbyPorts:
         """
         self._store = store
 
-    def execute(self, sector_id: int, max_hops: int = 5) -> list[tuple[int, Port]]:
+    def execute(self, sector_id: int, max_hops: int = 5) -> list[NearbyPort]:
         """Find ports reachable within max_hops.
 
         Args:
@@ -29,7 +29,7 @@ class FindNearbyPorts:
             max_hops: Maximum search distance.
 
         Returns:
-            List of (hops, Port) sorted by distance.
+            List of NearbyPort sorted by distance.
         """
         warps = self._store.get_all_warps()
         adj: dict[int, set[int]] = defaultdict(set)
@@ -48,12 +48,12 @@ class FindNearbyPorts:
                     visited[neighbor] = dist + 1
                     queue.append((neighbor, dist + 1))
 
-        results: list[tuple[int, Port]] = []
+        results: list[NearbyPort] = []
         for sid, hops in visited.items():
             if hops > 0:
                 port = self._store.get_port(sid)
                 if port:
-                    results.append((hops, port))
+                    results.append(NearbyPort(hops=hops, port=port))
 
-        results.sort(key=lambda x: x[0])
+        results.sort(key=lambda x: x.hops)
         return results

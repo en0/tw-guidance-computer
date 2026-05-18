@@ -6,6 +6,8 @@ import random
 from typing import final
 
 from tw_guidance_computer.application.ports.game_state_store import GameStateStore
+from tw_guidance_computer.domain.exceptions import SectorNotFoundError
+from tw_guidance_computer.domain.models import ArtCell
 from tw_guidance_computer.domain.sector_art import compose_scene
 
 
@@ -25,7 +27,7 @@ class RenderSectorArt:
         """
         self._store = store
 
-    def execute(self, sector_id: int, width: int, height: int) -> list[list[tuple[str, str]]]:
+    def execute(self, sector_id: int, width: int, height: int) -> list[list[ArtCell]]:
         """Render the sector art grid.
 
         Args:
@@ -34,8 +36,15 @@ class RenderSectorArt:
             height: Canvas height in rows.
 
         Returns:
-            Grid of (character, ansi_color_escape) tuples.
+            Grid of ArtCell values.
+
+        Raises:
+            SectorNotFoundError: If the sector has not been explored.
         """
+        sector = self._store.get_sector(sector_id)
+        if sector is None or not sector.explored:
+            raise SectorNotFoundError(f"Sector {sector_id} has not been explored yet.")
+
         port = self._store.get_port(sector_id)
         port_name = port.name if port else None
         has_stardock = port is not None and port.port_class == 0

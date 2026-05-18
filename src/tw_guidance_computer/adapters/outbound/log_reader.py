@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import final, override
 
 from tw_guidance_computer.application.ports.log_reader import LogReader
+from tw_guidance_computer.domain.exceptions import LogReadError
 
 ANSI_RE = re.compile(
     r"\x1b\[[0-9;?]*[A-Za-z]"
@@ -33,12 +34,17 @@ class TailLogReader(LogReader):
 
         Args:
             log_path: Path to the log file to tail.
+
+        Raises:
+            LogReadError: If the log file cannot be opened.
         """
         self._path = log_path
-        self._fd = open(log_path, "rb")  # noqa: SIM115
-        # Seek to end so we only process new data going forward
-        self._fd.seek(0, os.SEEK_END)
-        self._offset = self._fd.tell()
+        try:
+            self._fd = open(log_path, "rb")  # noqa: SIM115
+            self._fd.seek(0, os.SEEK_END)
+            self._offset = self._fd.tell()
+        except OSError as e:
+            raise LogReadError(f"Cannot open log file {log_path}: {e}") from e
 
     @override
     def read_new(self) -> str | None:
@@ -46,9 +52,15 @@ class TailLogReader(LogReader):
 
         Returns:
             ANSI-stripped text if new data available, None otherwise.
+
+        Raises:
+            LogReadError: If reading fails.
         """
-        self._fd.seek(self._offset)
-        data = self._fd.read()
+        try:
+            self._fd.seek(self._offset)
+            data = self._fd.read()
+        except OSError as e:
+            raise LogReadError(f"Failed to read log: {e}") from e
         if not data:
             return None
         self._offset = self._fd.tell()
@@ -69,9 +81,15 @@ class TailLogReader(LogReader):
 
         Returns:
             ANSI-stripped full file contents.
+
+        Raises:
+            LogReadError: If reading fails.
         """
-        with open(self._path, "rb") as f:
-            data = f.read()
+        try:
+            with open(self._path, "rb") as f:
+                data = f.read()
+        except OSError as e:
+            raise LogReadError(f"Failed to read log file: {e}") from e
         self._offset = len(data)
         self._fd.seek(self._offset)
         text = data.decode("utf-8", errors="replace")

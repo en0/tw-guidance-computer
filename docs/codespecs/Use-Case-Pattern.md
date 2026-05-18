@@ -30,6 +30,8 @@ Marking use cases `@final` prevents subclassing, which protects the private stat
 
 7. **Configuration values are constructor parameters, not hardcoded.** Poll intervals, timeouts, delays — anything that might vary between environments or tests is injected. Provide sensible defaults.
 
+8. **`execute()` parameters and return types are domain types.** Use cases speak the domain language exclusively. Structured data always gets a value object — never a raw tuple, dict, or untyped collection. Simple values that are semantically meaningful use type aliases (e.g., `SectorId = int`) when they add clarity to the interface. The cost of defining a domain type is near zero; the clarity it provides at the call site and in tests is permanent.
+
 ## Examples
 
 ### Thin delegation — use case as a seam

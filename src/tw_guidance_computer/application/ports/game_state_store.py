@@ -8,7 +8,6 @@ from tw_guidance_computer.domain.models import (
     PlayerStatus,
     Port,
     Sector,
-    TradePair,
     WarpConnection,
 )
 
@@ -25,6 +24,9 @@ class GameStateStore(Protocol):
 
         Args:
             sector: The sector to store.
+
+        Raises:
+            StorageError: If the write fails.
         """
         ...
 
@@ -33,6 +35,9 @@ class GameStateStore(Protocol):
 
         Args:
             port: The port to store.
+
+        Raises:
+            StorageError: If the write fails.
         """
         ...
 
@@ -41,6 +46,9 @@ class GameStateStore(Protocol):
 
         Args:
             warp: The warp connection to store.
+
+        Raises:
+            StorageError: If the write fails.
         """
         ...
 
@@ -49,6 +57,9 @@ class GameStateStore(Protocol):
 
         Args:
             status: The current player state.
+
+        Raises:
+            StorageError: If the write fails.
         """
         ...
 
@@ -57,6 +68,9 @@ class GameStateStore(Protocol):
 
         Args:
             message: The chat message to store.
+
+        Raises:
+            StorageError: If the write fails.
         """
         ...
 
@@ -68,6 +82,9 @@ class GameStateStore(Protocol):
 
         Returns:
             The sector if known, None otherwise.
+
+        Raises:
+            StorageError: If the read fails.
         """
         ...
 
@@ -79,6 +96,9 @@ class GameStateStore(Protocol):
 
         Returns:
             The port if known, None otherwise.
+
+        Raises:
+            StorageError: If the read fails or stored data is corrupt.
         """
         ...
 
@@ -90,6 +110,9 @@ class GameStateStore(Protocol):
 
         Returns:
             List of warp connections from this sector.
+
+        Raises:
+            StorageError: If the read fails.
         """
         ...
 
@@ -98,6 +121,9 @@ class GameStateStore(Protocol):
 
         Returns:
             Every warp connection in the database.
+
+        Raises:
+            StorageError: If the read fails.
         """
         ...
 
@@ -106,6 +132,9 @@ class GameStateStore(Protocol):
 
         Returns:
             Every port in the database.
+
+        Raises:
+            StorageError: If the read fails or stored data is corrupt.
         """
         ...
 
@@ -114,6 +143,9 @@ class GameStateStore(Protocol):
 
         Returns:
             The last known player state, or None if never set.
+
+        Raises:
+            StorageError: If the read fails or stored data is corrupt.
         """
         ...
 
@@ -125,14 +157,9 @@ class GameStateStore(Protocol):
 
         Returns:
             Most recent chat messages, newest first.
-        """
-        ...
 
-    def get_trade_pairs(self) -> list[TradePair]:
-        """Compute and return all known adjacent trade pairs.
-
-        Returns:
-            Trade pairs sorted by complementary count descending.
+        Raises:
+            StorageError: If the read fails.
         """
         ...
 
@@ -141,6 +168,9 @@ class GameStateStore(Protocol):
 
         Args:
             planet: The planet to store.
+
+        Raises:
+            StorageError: If the write fails.
         """
         ...
 
@@ -152,5 +182,8 @@ class GameStateStore(Protocol):
 
         Returns:
             True if the sector has a planet, False otherwise.
+
+        Raises:
+            StorageError: If the read fails.
         """
         ...

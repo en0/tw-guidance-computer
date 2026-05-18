@@ -18,6 +18,10 @@ def check(ctx: GateContext) -> GateResult:
         for node in ast.walk(mod.tree):
             if not isinstance(node, ast.ClassDef):
                 continue
+            if node.name.startswith("_"):
+                continue
+            if _is_frozen_dataclass(node):
+                continue
             has_final = any(
                 (isinstance(d, ast.Name) and d.id == "final")
                 or (isinstance(d, ast.Attribute) and d.attr == "final")
@@ -32,3 +36,18 @@ def check(ctx: GateContext) -> GateResult:
                     )
                 )
     return GateResult(name=NAME, description=DESCRIPTION, passed=not violations, violations=violations)
+
+
+def _is_frozen_dataclass(node: ast.ClassDef) -> bool:
+    for d in node.decorator_list:
+        if isinstance(d, ast.Call):
+            func = d.func
+            if isinstance(func, ast.Name) and func.id == "dataclass":
+                for kw in d.keywords:
+                    if kw.arg == "frozen" and isinstance(kw.value, ast.Constant) and kw.value.value is True:
+                        return True
+            if isinstance(func, ast.Attribute) and func.attr == "dataclass":
+                for kw in d.keywords:
+                    if kw.arg == "frozen" and isinstance(kw.value, ast.Constant) and kw.value.value is True:
+                        return True
+    return False

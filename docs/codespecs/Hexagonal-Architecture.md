@@ -100,9 +100,7 @@ Logging, metrics, and tracing do not belong in domain. They are infrastructure c
 
 5. **The test directory mirrors the source directory.** `tests/test_domain/`, `tests/test_application/`, `tests/test_adapters/`. Unit test files map to source files. Integration and end-to-end tests live in `tests/integration/` or `tests/e2e/` — they don't need to mirror source structure.
 
-6. **Subdivide layers when scale demands it.** The flat layout is the default. When a layer exceeds ~8–10 modules and navigating becomes painful, add namespace subdivisions *within* the layer. The layer boundary and dependency rule don't change — only the internal organization does.
-
-7. **Inbound and outbound adapters live in the same `adapters/` directory by default.** When the adapter count grows beyond ~6 files, split into `adapters/inbound/` and `adapters/outbound/`. The distinction is conceptual at small scale, structural at large scale.
+6. **Inbound and outbound adapters are always separated.** `adapters/inbound/` contains handlers that translate external input into use case calls. `adapters/outbound/` contains implementations of ports. This makes the dependency direction visible in the directory structure — inbound adapters call use cases, outbound adapters implement ports.
 
 ## Use Case Granularity
 
@@ -116,15 +114,18 @@ Logging, metrics, and tracing do not belong in domain. They are infrastructure c
 
 ## Directory Layout
 
-### Small project (default)
-
 ```
 src/package_name/
 ├── __init__.py
 ├── server.py | main.py | cli.py    # composition root: wires dependencies, starts the app
 ├── domain/
 │   ├── __init__.py
-│   ├── models.py                    # value objects, entities, enums
+│   ├── models/
+│   │   ├── __init__.py              # re-exports: from .todo_item import TodoItem, etc.
+│   │   ├── types.py                 # type aliases: SectorId = int, JobPath = str
+│   │   ├── todo_item.py             # one model per file
+│   │   ├── search_query.py
+│   │   └── job_info.py
 │   └── exceptions.py                # domain exception hierarchy
 ├── application/
 │   ├── __init__.py
@@ -134,64 +135,17 @@ src/package_name/
 │       └── some_client.py           # one file per port (typing.Protocol class)
 └── adapters/
     ├── __init__.py
-    ├── some_rest_client.py          # outbound: implements a port
-    ├── config_loader.py             # outbound: reads configuration
-    └── mcp_tools.py | cli.py        # inbound: translates external input
-```
-
-### Small project with many models
-
-When `models.py` grows too large, convert to a sub-module. One file per model, `__init__.py` re-exports all public types so import paths don't change.
-
-```
-src/package_name/
-├── domain/
-│   ├── __init__.py
-│   ├── models/
-│   │   ├── __init__.py              # re-exports: from .todo_item import TodoItem, etc.
-│   │   ├── todo_item.py             # one model per file
-│   │   ├── search_query.py
-│   │   └── job_info.py
-│   └── exceptions.py
-```
-
-Consumers still import `from my_app.domain.models import TodoItem` — the split is invisible to the rest of the codebase.
-
-### Larger project (subdivided)
-
-```
-src/package_name/
-├── __init__.py
-├── main.py
-├── domain/
-│   ├── __init__.py
-│   ├── models.py
-│   └── exceptions.py
-├── application/
-│   ├── __init__.py
-│   ├── licensed/
-│   │   ├── __init__.py
-│   │   └── activate_license.py
-│   ├── unlicensed/
-│   │   ├── __init__.py
-│   │   └── start_trial.py
-│   └── ports/
-│       ├── __init__.py
-│       ├── license_store.py
-│       └── notification_client.py
-└── adapters/
-    ├── __init__.py
     ├── inbound/
     │   ├── __init__.py
-    │   ├── http_handlers.py
+    │   ├── mcp_tools.py             # translates external input into use case calls
     │   └── cli.py
     └── outbound/
         ├── __init__.py
-        ├── postgres_license_store.py
-        └── smtp_notification_client.py
+        ├── some_rest_client.py      # implements a port
+        └── config_loader.py
 ```
 
-The flat layout is the starting point. Subdivide when navigating the flat layout becomes painful — not before.
+Consumers import `from my_app.domain.models import TodoItem` — the sub-module structure is invisible to the rest of the codebase because `__init__.py` re-exports all public types.
 
 ### Test directory (always mirrors source)
 

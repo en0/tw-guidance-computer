@@ -4,17 +4,16 @@ from __future__ import annotations
 
 import curses
 import re
+import sys
 import time
-from typing import final
+from typing import TYPE_CHECKING, final
 
-from tw_guidance_computer.application.find_nearest_pair import FindNearestPair
-from tw_guidance_computer.application.find_sell_locations import FindSellLocations
-from tw_guidance_computer.application.find_trade_pairs import FindTradePairs
-from tw_guidance_computer.application.parse_log_chunk import ParseLogChunk
-from tw_guidance_computer.application.ports.game_state_store import GameStateStore
 from tw_guidance_computer.application.ports.log_reader import LogReader
-from tw_guidance_computer.application.render_sector_art import RenderSectorArt
-from tw_guidance_computer.domain.models import PlayerStatus
+from tw_guidance_computer.domain.exceptions import GuidanceError
+from tw_guidance_computer.domain.models import ArtCell, PlayerStatus
+
+if TYPE_CHECKING:
+    from tw_guidance_computer.application.use_cases import UseCases
 
 _ANSI_COLOR_RE = re.compile(r"\033\[38;5;(\d+)m")
 _TWO_COLUMN_HEIGHT = 12
@@ -27,27 +26,20 @@ class HudDisplay:
 
     def __init__(
         self,
-        store: GameStateStore,
         reader: LogReader,
-        parser: ParseLogChunk,
+        use_cases: UseCases,
     ) -> None:
         """Initialize the HUD.
 
         Args:
-            store: Game state store for queries.
             reader: Log reader for new data.
-            parser: Parser to process log chunks.
+            use_cases: Pre-wired use case container.
         """
-        self._store = store
         self._reader = reader
-        self._parser = parser
-        self._find_pairs = FindTradePairs(store)
-        self._find_nearest = FindNearestPair(store)
-        self._find_sell = FindSellLocations(store)
-        self._render_art = RenderSectorArt(store)
+        self._uc = use_cases
         self._running = True
         self._pairs_mode = "best"  # "best" or "nearest"
-        self._art_cache: list[list[tuple[str, str]]] | None = None
+        self._art_cache: list[list[ArtCell]] | None = None
         self._art_sector: int | None = None
         self._art_size: tuple[int, int] = (0, 0)
         self._color_pair_map: dict[int, int] = {}
@@ -55,7 +47,10 @@ class HudDisplay:
 
     def run(self) -> None:
         """Start the HUD display loop."""
-        curses.wrapper(self._main_loop)
+        try:
+            curses.wrapper(self._main_loop)
+        except GuidanceError as e:
+            print(f"Error: {e}", file=sys.stderr)
 
     def _main_loop(self, stdscr: curses.window) -> None:
         curses.curs_set(0)
@@ -68,11 +63,17 @@ class HudDisplay:
         curses.init_pair(4, curses.COLOR_RED, -1)
         curses.init_pair(5, curses.COLOR_MAGENTA, -1)
 
+        error_msg: str | None = None
+
         while self._running:
-            # Check for new log data
-            new_text = self._reader.read_new()
-            if new_text:
-                self._parser.execute(new_text)
+            try:
+                # Check for new log data
+                new_text = self._reader.read_new()
+                if new_text:
+                    self._uc.parse_log_chunk.execute(new_text)
+                error_msg = None
+            except GuidanceError as e:
+                error_msg = str(e)
 
             # Check for quit key
             key = stdscr.getch()
@@ -84,13 +85,18 @@ class HudDisplay:
 
             # Render
             stdscr.erase()
-            self._render(stdscr)
+            try:
+                self._render(stdscr)
+            except GuidanceError as e:
+                error_msg = str(e)
+            if error_msg:
+                self._safe_addstr(stdscr, stdscr.getmaxyx()[0] - 2, 0, f" ⚠ {error_msg}", curses.color_pair(4))
             stdscr.refresh()
             time.sleep(0.25)
 
     def _render(self, stdscr: curses.window) -> None:
         max_y, max_x = stdscr.getmaxyx()
-        status = self._store.get_player_status()
+        status = self._uc.get_player_status.execute()
 
         # Header
         self._render_header(stdscr, max_x, status)
@@ -191,7 +197,7 @@ class HudDisplay:
             return row + 2
 
         carrying = [h.commodity for h in status.cargo]
-        recommendations = self._find_sell.execute(status.sector_id, carrying, max_hops=8)
+        recommendations = self._uc.find_sell_locations.execute(status.sector_id, carrying, max_hops=8)
 
         if not recommendations:
             self._safe_addstr(stdscr, row, 1, "No known buyers nearby", curses.color_pair(4))
@@ -221,7 +227,7 @@ class HudDisplay:
         return self._render_best_pairs(stdscr, row, col, width)
 
     def _render_best_pairs(self, stdscr: curses.window, row: int, col: int, width: int) -> int:
-        pairs = self._find_pairs.execute(min_complementary=2)
+        pairs = self._uc.find_trade_pairs.execute(min_complementary=2)
         if not pairs:
             self._safe_addstr(stdscr, row, col + 1, "None found yet", curses.color_pair(1))
             return row + 2
@@ -238,19 +244,20 @@ class HudDisplay:
         return row
 
     def _render_nearest_pairs(self, stdscr: curses.window, row: int, col: int, width: int) -> int:
-        status = self._store.get_player_status()
+        status = self._uc.get_player_status.execute()
         if not status:
             self._safe_addstr(stdscr, row, col + 1, "No position known", curses.color_pair(1))
             return row + 2
 
-        results = self._find_nearest.execute(status.sector_id, limit=6)
+        results = self._uc.find_nearest_pair.execute(status.sector_id, limit=6)
         if not results:
             self._safe_addstr(stdscr, row, col + 1, "None found yet", curses.color_pair(1))
             return row + 2
 
-        for hops, pair in results:
+        for nearest in results:
+            pair = nearest.pair
             line = (
-                f" {hops}h [{pair.sector_a}]\u2194[{pair.sector_b}]"
+                f" {nearest.hops}h [{pair.sector_a}]\u2194[{pair.sector_b}]"
                 f" {pair.complementary_count}/3 {pair.port_a_type}|{pair.port_b_type}"
             )
             self._safe_addstr(stdscr, row, col, line[:width], curses.color_pair(1))
@@ -265,7 +272,7 @@ class HudDisplay:
         self._safe_addstr(stdscr, row, col, "─── COMMS ───", curses.color_pair(5))
         row += 1
 
-        messages = self._store.get_recent_chat(limit=max_y - row - 2)
+        messages = self._uc.get_recent_chat.execute(limit=max_y - row - 2)
         if not messages:
             self._safe_addstr(stdscr, row, col + 1, "No messages", curses.color_pair(1))
             return
@@ -286,7 +293,7 @@ class HudDisplay:
         # Regenerate art on sector change or resize
         if self._art_cache is None or self._art_sector != current_sector or self._art_size != size:
             if current_sector is not None:
-                self._art_cache = self._render_art.execute(current_sector, width, height)
+                self._art_cache = self._uc.render_sector_art.execute(current_sector, width, height)
             else:
                 self._art_cache = None
             self._art_sector = current_sector
@@ -302,14 +309,14 @@ class HudDisplay:
             screen_y = top + 1 + y
             if screen_y >= top + height:
                 break
-            for x, (char, color_escape) in enumerate(row):
+            for x, cell in enumerate(row):
                 if x >= width - 1:
                     break
-                if char == " ":
+                if cell.char == " ":
                     continue
-                attr = self._get_color_pair(color_escape)
+                attr = self._get_color_pair(cell.color)
                 try:
-                    stdscr.addstr(screen_y, x, char, attr)
+                    stdscr.addstr(screen_y, x, cell.char, attr)
                 except curses.error:
                     pass
 

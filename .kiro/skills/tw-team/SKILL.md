@@ -9,52 +9,15 @@ Shared knowledge that persists across agent sessions.
 
 ## Structure
 
-- `knowledge/product/` — Current product state: HUD layout, CLI commands, data flow, capabilities
-- `knowledge/parser-patterns/` — Discovered patterns in the TW2002 data stream
-- `knowledge/tw-mechanics/` — Game rules, formulas, behaviors
-- `knowledge/decisions/` — Architecture decisions and rejected approaches
-- `templates/` — Document templates for feature designs, impl plans, UI specs
-- `features/` — Feature artifacts organized by number (`NNN-slug/` per feature)
+- `.kiro/skills/tw-team/knowledge/product/` — Current product state: HUD layout, CLI commands, data flow
+- `.kiro/skills/tw-team/knowledge/parser-patterns/` — Discovered patterns in the TW2002 data stream
+- `.kiro/skills/tw-team/knowledge/tw-mechanics/` — Game rules, formulas, behaviors
+- `.kiro/skills/tw-team/knowledge/decisions/` — Architecture decisions and rejected approaches
+- `.kiro/skills/tw-team/templates/` — Document templates (feature designs, impl plans, UI specs)
+- `.kiro/skills/tw-team/features/` — Feature artifacts by number (`NNN-slug/`)
 
-## Usage
+## Rules
 
-Any agent that discovers something writes it to the appropriate knowledge file. Files are markdown. One topic per file. Use descriptive filenames.
-
-### Parser Patterns Format
-
-```markdown
-# [Pattern Name]
-
-## What It Captures
-Brief description.
-
-## Raw Example (with ANSI noted)
-The actual bytes from a session log.
-
-## Clean Text (after strip)
-What the parser sees.
-
-## Regex
-The pattern that matches.
-
-## Edge Cases
-Known variations or gotchas.
-```
-
-### Game Mechanics Format
-
-```markdown
-# [Mechanic Name]
-
-## How It Works
-Description of the game behavior.
-
-## What the Player Sees
-Terminal output during this mechanic.
-
-## Relevant to Parser?
-Whether this produces parseable output and what data can be extracted.
-
-## Sources
-How this was verified (session logs, documentation, testing).
-```
+- Any agent that discovers something writes it to the appropriate knowledge file
+- One topic per file, descriptive filenames, markdown format
+- Use templates in `.kiro/skills/tw-team/templates/` for feature artifacts — don't invent formats

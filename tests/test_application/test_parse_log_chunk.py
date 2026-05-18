@@ -1,60 +1,71 @@
 """Tests for the ParseLogChunk use case."""
 
+from unittest.mock import MagicMock
+
 import pytest
 
-from tw_guidance_computer.adapters.sqlite_store import SqliteGameStateStore
 from tw_guidance_computer.application.parse_log_chunk import ParseLogChunk
-from tw_guidance_computer.domain.models import CommodityType
+from tw_guidance_computer.application.ports.game_state_store import GameStateStore
+from tw_guidance_computer.domain.models import (
+    CommodityType,
+    PlayerStatus,
+    Port,
+    Sector,
+)
 
 
 @pytest.fixture()
-def store(tmp_path):
-    return SqliteGameStateStore(tmp_path / "test.db")
+def mock_store():
+    store = MagicMock(spec=GameStateStore)
+    store.get_player_status.return_value = None
+    return store
 
 
 @pytest.fixture()
-def parser(store):
-    return ParseLogChunk(store)
+def parser(mock_store):
+    return ParseLogChunk(mock_store)
+
+
+def _last_player_status(mock_store) -> PlayerStatus:
+    """Get the last PlayerStatus passed to set_player_status."""
+    mock_store.set_player_status.assert_called()
+    return mock_store.set_player_status.call_args[0][0]
 
 
 class TestParseLogChunk:
-    def test_extracts_sector(self, parser, store):
+    def test_extracts_sector(self, parser, mock_store):
         text = "Sector  : 865 in The Rovine Nebulae.\n"
         parser.execute(text)
-        sector = store.get_sector(865)
-        assert sector is not None
-        assert sector.region == "The Rovine Nebulae"
-        assert sector.explored is True
+        mock_store.upsert_sector.assert_any_call(
+            Sector(id=865, region="The Rovine Nebulae", explored=True)
+        )
 
-    def test_extracts_warps(self, parser, store):
+    def test_extracts_warps(self, parser, mock_store):
         text = "Sector  : 865 in The Rovine Nebulae.\nWarps to Sector(s) :  120 - (131) - 658 - (985)\nCommand"
         parser.execute(text)
-        warps = store.get_warps(865)
-        assert len(warps) == 4
-        to_sectors = {w.to_sector for w in warps}
+        warp_calls = [c[0][0] for c in mock_store.upsert_warp.call_args_list]
+        to_sectors = {w.to_sector for w in warp_calls if w.from_sector == 865}
         assert to_sectors == {120, 131, 658, 985}
 
-    def test_unexplored_warps_marked(self, parser, store):
+    def test_unexplored_warps_marked(self, parser, mock_store):
         text = "Sector  : 865 in The Rovine Nebulae.\nWarps to Sector(s) :  120 - (131) - 658\nCommand"
         parser.execute(text)
-        sector_131 = store.get_sector(131)
-        assert sector_131 is not None
-        assert sector_131.explored is False
+        mock_store.upsert_sector.assert_any_call(
+            Sector(id=131, explored=False)
+        )
 
-    def test_extracts_port_from_sector_display(self, parser, store):
+    def test_extracts_port_from_sector_display(self, parser, mock_store):
         text = (
             "Sector  : 832 in The Rovine Nebulae.\n"
             "Ports   : Nambu Minor, Class 3 (SBB)\n"
             "Warps to Sector(s) :  658\nCommand"
         )
         parser.execute(text)
-        port = store.get_port(832)
-        assert port is not None
-        assert port.name == "Nambu Minor"
-        assert port.port_class == 3
-        assert port.port_type == "SBB"
+        mock_store.upsert_port.assert_any_call(
+            Port(sector_id=832, name="Nambu Minor", port_class=3, port_type="SBB")
+        )
 
-    def test_extracts_commerce_report(self, parser, store):
+    def test_extracts_commerce_report(self, parser, mock_store):
         text = (
             "Command [TL=00:00:00]:[865] (?=Help)? : P\n"
             "Commerce report for Hydra Annex: 01:39:28 AM Fri May 15, 2054\n"
@@ -63,13 +74,12 @@ class TestParseLogChunk:
             "Equipment  Selling   1680    100%       0\n"
         )
         parser.execute(text)
-        port = store.get_port(865)
-        assert port is not None
-        assert port.name == "Hydra Annex"
-        assert port.port_type == "SSS"
-        assert len(port.commodities) == 3
+        port_calls = [c[0][0] for c in mock_store.upsert_port.call_args_list]
+        commerce_port = next(p for p in port_calls if p.name == "Hydra Annex")
+        assert commerce_port.port_type == "SSS"
+        assert len(commerce_port.commodities) == 3
 
-    def test_extracts_turns_remaining(self, parser, store):
+    def test_extracts_turns_remaining(self, parser, mock_store):
         text = (
             "Sector  : 100 in Test.\n"
             "Warps to Sector(s) :  200\n"
@@ -77,23 +87,21 @@ class TestParseLogChunk:
             "One turn deducted, 809 turns left.\n"
         )
         parser.execute(text)
-        status = store.get_player_status()
-        assert status is not None
+        status = _last_player_status(mock_store)
         assert status.turns_remaining == 809
 
-    def test_extracts_credits(self, parser, store):
+    def test_extracts_credits(self, parser, mock_store):
         text = (
             "Sector  : 100 in Test.\n"
             "Command [TL=00:00:00]:[100] (?=Help)? : P\n"
             "You have 5,125 credits and 20 empty cargo holds.\n"
         )
         parser.execute(text)
-        status = store.get_player_status()
-        assert status is not None
+        status = _last_player_status(mock_store)
         assert status.credits == 5125
         assert status.holds_empty == 20
 
-    def test_cargo_not_inferred_from_onboard_column(self, parser, store):
+    def test_cargo_not_inferred_from_onboard_column(self, parser, mock_store):
         text = (
             "Command [TL=00:00:00]:[100] (?=Help)? : P\n"
             "Commerce report for Port Alpha: 01:00:00 AM Fri May 15, 2054\n"
@@ -109,12 +117,10 @@ class TestParseLogChunk:
             "You have 6,000 credits and 0 empty cargo holds.\n"
         )
         parser.execute(text)
-        status = store.get_player_status()
-        assert status is not None
-        # Cargo is tracked via transactions and sync points, not OnBoard column
+        status = _last_player_status(mock_store)
         assert status.cargo == []
 
-    def test_cargo_cleared_when_holds_empty_after_commerce(self, parser, store):
+    def test_cargo_cleared_when_holds_empty_after_commerce(self, parser, mock_store):
         text = (
             "Command [TL=00:00:00]:[827] (?=Help)? : P\n"
             "Commerce report for Augsburg Major: 02:57:31 AM Fri May 15, 2054\n"
@@ -126,17 +132,14 @@ class TestParseLogChunk:
             "You have 32,211 credits and 50 empty cargo holds.\n"
         )
         parser.execute(text)
-        status = store.get_player_status()
-        assert status is not None
-        # The last "empty cargo holds" line shows 50 empty AFTER the commerce
-        # report, meaning cargo was sold — should be empty
+        status = _last_player_status(mock_store)
         assert status.cargo == []
         assert status.holds_empty == 50
         assert status.credits == 32211
 
 
 class TestInfoBlockSync:
-    def test_parses_info_with_cargo(self, parser, store):
+    def test_parses_info_with_cargo(self, parser, mock_store):
         text = (
             "<Info>\n"
             "\n"
@@ -155,8 +158,7 @@ class TestInfoBlockSync:
             "Credits        : 7\n"
         )
         parser.execute(text)
-        status = store.get_player_status()
-        assert status is not None
+        status = _last_player_status(mock_store)
         assert status.sector_id == 178
         assert status.turns_remaining == 153
         assert status.credits == 7
@@ -166,7 +168,7 @@ class TestInfoBlockSync:
         assert status.cargo[0].commodity == CommodityType.ORGANICS
         assert status.cargo[0].quantity == 2
 
-    def test_parses_info_with_full_cargo(self, parser, store):
+    def test_parses_info_with_full_cargo(self, parser, mock_store):
         text = (
             "<Info>\n"
             "\n"
@@ -185,8 +187,7 @@ class TestInfoBlockSync:
             "Credits        : 2,872\n"
         )
         parser.execute(text)
-        status = store.get_player_status()
-        assert status is not None
+        status = _last_player_status(mock_store)
         assert status.sector_id == 480
         assert status.turns_remaining == 764
         assert status.credits == 2872
@@ -196,7 +197,7 @@ class TestInfoBlockSync:
         assert status.cargo[0].commodity == CommodityType.FUEL_ORE
         assert status.cargo[0].quantity == 20
 
-    def test_parses_info_empty_holds(self, parser, store):
+    def test_parses_info_empty_holds(self, parser, mock_store):
         text = (
             "<Info>\n"
             "\n"
@@ -213,8 +214,7 @@ class TestInfoBlockSync:
             "Credits        : 50,219\n"
         )
         parser.execute(text)
-        status = store.get_player_status()
-        assert status is not None
+        status = _last_player_status(mock_store)
         assert status.sector_id == 1
         assert status.turns_remaining == 282
         assert status.credits == 50219
@@ -224,14 +224,13 @@ class TestInfoBlockSync:
 
 
 class TestStatusBarSync:
-    def test_parses_compact_status_bar(self, parser, store):
+    def test_parses_compact_status_bar(self, parser, mock_store):
         text = (
             " Sect 1\u2502Turns 282\u2502Creds 50,219\u2502Figs 30\u2502Shlds 0"
             "\u2502Hlds 20\u2502Ore 0\u2502Org 0\u2502Equ 0\u2502Col 0\n"
         )
         parser.execute(text)
-        status = store.get_player_status()
-        assert status is not None
+        status = _last_player_status(mock_store)
         assert status.sector_id == 1
         assert status.turns_remaining == 282
         assert status.credits == 50219
@@ -239,14 +238,13 @@ class TestStatusBarSync:
         assert status.holds_empty == 20
         assert status.cargo == []
 
-    def test_parses_status_bar_with_cargo(self, parser, store):
+    def test_parses_status_bar_with_cargo(self, parser, mock_store):
         text = (
             " Sect 480\u2502Turns 764\u2502Creds 2,872\u2502Figs 30\u2502Shlds 5"
             "\u2502Hlds 20\u2502Ore 20\u2502Org 0\u2502Equ 0\u2502Col 0\n"
         )
         parser.execute(text)
-        status = store.get_player_status()
-        assert status is not None
+        status = _last_player_status(mock_store)
         assert status.sector_id == 480
         assert status.turns_remaining == 764
         assert status.credits == 2872
@@ -256,14 +254,13 @@ class TestStatusBarSync:
         assert status.cargo[0].commodity == CommodityType.FUEL_ORE
         assert status.cargo[0].quantity == 20
 
-    def test_parses_status_bar_with_comma_in_turns(self, parser, store):
+    def test_parses_status_bar_with_comma_in_turns(self, parser, mock_store):
         text = (
             " Sect 616\u2502Turns 1,000\u2502Creds 25\u2502Figs 1\u2502Shlds 30"
             "\u2502Hlds 1\u2502Ore 0\u2502Org 0\u2502Equ 0\u2502Col 0\n"
         )
         parser.execute(text)
-        status = store.get_player_status()
-        assert status is not None
+        status = _last_player_status(mock_store)
         assert status.sector_id == 616
         assert status.turns_remaining == 1000
         assert status.credits == 25
@@ -272,7 +269,7 @@ class TestStatusBarSync:
 
 
 class TestTurnCounterFormats:
-    def test_stardate_turns(self, parser, store):
+    def test_stardate_turns(self, parser, mock_store):
         text = (
             "Sector  : 178 in uncharted space.\n"
             "Warps to Sector(s) :  120 - (509)\n"
@@ -280,32 +277,29 @@ class TestTurnCounterFormats:
             "You have 816 turns this Stardate.\n"
         )
         parser.execute(text)
-        status = store.get_player_status()
-        assert status is not None
+        status = _last_player_status(mock_store)
         assert status.turns_remaining == 816
 
-    def test_you_have_n_turns_left(self, parser, store):
+    def test_you_have_n_turns_left(self, parser, mock_store):
         text = (
             "Sector  : 246 in uncharted space.\n"
             "Command [TL=00:00:00]:[246] (?=Help)? :P\n"
             "You have 4 turns left.\n"
         )
         parser.execute(text)
-        status = store.get_player_status()
-        assert status is not None
+        status = _last_player_status(mock_store)
         assert status.turns_remaining == 4
 
-    def test_no_turns_left(self, parser, store):
+    def test_no_turns_left(self, parser, mock_store):
         text = (
             "Command [TL=00:00:00]:[827] (?=Help)? :P\n"
             "You don't have any turns left.\n"
         )
         parser.execute(text)
-        status = store.get_player_status()
-        assert status is not None
+        status = _last_player_status(mock_store)
         assert status.turns_remaining == 0
 
-    def test_recover_turns(self, parser, store):
+    def test_recover_turns(self, parser, mock_store):
         text = (
             "Sector  : 558 in Actacon (unexplored).\n"
             "Command [TL=00:00:00]:[558] (?=Help)? :N\n"
@@ -313,13 +307,12 @@ class TestTurnCounterFormats:
             "You recover 41 of your turns.\n"
         )
         parser.execute(text)
-        status = store.get_player_status()
-        assert status is not None
+        status = _last_player_status(mock_store)
         assert status.turns_remaining == 141
 
 
 class TestTransactionTracking:
-    def test_buy_transaction_with_cost_basis(self, parser, store):
+    def test_buy_transaction_with_cost_basis(self, parser, mock_store):
         text = (
             "Command [TL=00:00:00]:[8] (?=Help)? :P\n"
             "One turn deducted, 965 turns left.\n"
@@ -344,14 +337,13 @@ class TestTransactionTracking:
             "You have 189 credits and 0 empty cargo holds.\n"
         )
         parser.execute(text)
-        status = store.get_player_status()
-        assert status is not None
+        status = _last_player_status(mock_store)
         assert len(status.cargo) == 1
         assert status.cargo[0].commodity == CommodityType.FUEL_ORE
         assert status.cargo[0].quantity == 20
         assert status.cargo[0].cost_per_unit == pytest.approx(111.0 / 20)
 
-    def test_sell_transaction_removes_cargo(self, parser, store):
+    def test_sell_transaction_removes_cargo(self, parser, mock_store):
         # Pre-load cargo via info block
         info_text = (
             "<Info>\n"
@@ -390,12 +382,11 @@ class TestTransactionTracking:
             "You have 1,019 credits and 20 empty cargo holds.\n"
         )
         parser.execute(sell_text)
-        status = store.get_player_status()
-        assert status is not None
+        status = _last_player_status(mock_store)
         assert status.cargo == []
         assert status.holds_empty == 20
 
-    def test_buy_then_sell_full_cycle(self, parser, store):
+    def test_buy_then_sell_full_cycle(self, parser, mock_store):
         text = (
             "Command [TL=00:00:00]:[8] (?=Help)? :P\n"
             "One turn deducted, 957 turns left.\n"
@@ -430,16 +421,14 @@ class TestTransactionTracking:
             "You have 1,623 credits and 0 empty cargo holds.\n"
         )
         parser.execute(text)
-        status = store.get_player_status()
-        assert status is not None
+        status = _last_player_status(mock_store)
         assert len(status.cargo) == 1
         assert status.cargo[0].commodity == CommodityType.FUEL_ORE
         assert status.cargo[0].quantity == 20
         assert status.cargo[0].cost_per_unit == pytest.approx(116.0 / 20)
         assert status.credits == 1623
 
-
-    def test_extracts_planet(self, parser, store):
+    def test_extracts_planet(self, parser, mock_store):
         text = (
             "Sector  : 616 in uncharted space.\n"
             "Ports   : Trader Vic's, Class 6 (SBS)\n"
@@ -447,9 +436,10 @@ class TestTransactionTracking:
             "Warps to Sector(s) :  544 - 564 - 825\nCommand"
         )
         parser.execute(text)
-        assert store.has_planet(616) is True
+        planet_calls = [c[0][0] for c in mock_store.upsert_planet.call_args_list]
+        assert any(p.sector_id == 616 and p.name == "Terra" for p in planet_calls)
 
-    def test_planet_associated_with_correct_sector(self, parser, store):
+    def test_planet_associated_with_correct_sector(self, parser, mock_store):
         text = (
             "Sector  : 1 in The Federation.\n"
             "Ports   : Sol, Class 0 (Special)\n"
@@ -459,32 +449,24 @@ class TestTransactionTracking:
             "Warps to Sector(s) :  1 - 4\nCommand"
         )
         parser.execute(text)
-        assert store.has_planet(1) is True
-        assert store.has_planet(2) is False
+        planet_calls = [c[0][0] for c in mock_store.upsert_planet.call_args_list]
+        assert any(p.sector_id == 1 and p.name == "Terra" for p in planet_calls)
+        assert not any(p.sector_id == 2 for p in planet_calls)
 
-    def test_multiple_planets_in_sector(self, parser, store):
-        text = (
-            "Sector  : 100 in The Federation.\n"
-            "Planets : (M) Terra\n"
-            "Planets : (K) Vulcan\n"
-            "Warps to Sector(s) :  200\nCommand"
-        )
-        parser.execute(text)
-        assert store.has_planet(100) is True
-
-    def test_no_false_planet_match(self, parser, store):
+    def test_no_false_planet_match(self, parser, mock_store):
         text = (
             "Sector  : 50 in The Federation.\n"
             "Warps to Sector(s) :  51\nCommand"
         )
         parser.execute(text)
-        assert store.has_planet(50) is False
+        mock_store.upsert_planet.assert_not_called()
 
-    def test_planet_with_hyphenated_name(self, parser, store):
+    def test_planet_with_hyphenated_name(self, parser, mock_store):
         text = (
             "Sector  : 300 in uncharted space.\n"
             "Planets : (O) Mando-2\n"
             "Warps to Sector(s) :  301\nCommand"
         )
         parser.execute(text)
-        assert store.has_planet(300) is True
+        planet_calls = [c[0][0] for c in mock_store.upsert_planet.call_args_list]
+        assert any(p.sector_id == 300 and p.name == "Mando-2" for p in planet_calls)

@@ -15,3 +15,15 @@ class PathNotFoundError(GuidanceError):
 
 class SectorNotFoundError(GuidanceError):
     """Raised when a sector is not in the knowledge base."""
+
+
+class ValidationError(GuidanceError):
+    """Raised when a domain object cannot be constructed with invalid data."""
+
+
+class StorageError(GuidanceError):
+    """Raised when persistent storage is unavailable or fails."""
+
+
+class LogReadError(GuidanceError):
+    """Raised when reading the session log fails."""

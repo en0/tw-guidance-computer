@@ -11,10 +11,12 @@ import random
 from dataclasses import dataclass
 from enum import Enum
 
-# --- Tile System ---
+from tw_guidance_computer.domain.models.art import ArtCell
+
+# --- (_Tile) System ---
 
 
-class TileCategory(Enum):
+class _TileCategory(Enum):
     """Categories of tiles for WFC generation."""
 
     HULL = "hull"
@@ -27,91 +29,91 @@ class TileCategory(Enum):
 
 
 @dataclass(frozen=True)
-class Tile:
+class _Tile:
     """A single tile with adjacency constraints."""
 
     char: str
-    category: TileCategory
-    north: frozenset[TileCategory]
-    south: frozenset[TileCategory]
-    east: frozenset[TileCategory]
-    west: frozenset[TileCategory]
+    category: _TileCategory
+    north: frozenset[_TileCategory]
+    south: frozenset[_TileCategory]
+    east: frozenset[_TileCategory]
+    west: frozenset[_TileCategory]
     weight: float = 1.0
 
 
-ALL = frozenset(TileCategory)
+ALL = frozenset(_TileCategory)
 SOLID = frozenset(
-    {TileCategory.HULL, TileCategory.FRAME, TileCategory.PIPE, TileCategory.WINDOW, TileCategory.DOCK}
+    {_TileCategory.HULL, _TileCategory.FRAME, _TileCategory.PIPE, _TileCategory.WINDOW, _TileCategory.DOCK}
 )
 STRUCTURAL = frozenset(
-    {TileCategory.HULL, TileCategory.FRAME, TileCategory.PIPE, TileCategory.ANTENNA, TileCategory.WINDOW}
+    {_TileCategory.HULL, _TileCategory.FRAME, _TileCategory.PIPE, _TileCategory.ANTENNA, _TileCategory.WINDOW}
 )
-EDGE = frozenset({TileCategory.EMPTY, TileCategory.FRAME, TileCategory.DOCK, TileCategory.ANTENNA})
+EDGE = frozenset({_TileCategory.EMPTY, _TileCategory.FRAME, _TileCategory.DOCK, _TileCategory.ANTENNA})
 
-TILES: list[Tile] = [
+TILES: list[(_Tile)] = [
     # Hull plating
-    Tile("█", TileCategory.HULL, STRUCTURAL, STRUCTURAL, STRUCTURAL, STRUCTURAL, 3.0),
-    Tile("▓", TileCategory.HULL, STRUCTURAL, STRUCTURAL, STRUCTURAL, STRUCTURAL, 2.5),
-    Tile("░", TileCategory.HULL, ALL, ALL, ALL, ALL, 2.0),
+    _Tile("█", _TileCategory.HULL, STRUCTURAL, STRUCTURAL, STRUCTURAL, STRUCTURAL, 3.0),
+    _Tile("▓", _TileCategory.HULL, STRUCTURAL, STRUCTURAL, STRUCTURAL, STRUCTURAL, 2.5),
+    _Tile("░", _TileCategory.HULL, ALL, ALL, ALL, ALL, 2.0),
     # Structural frame
-    Tile("╔", TileCategory.FRAME, EDGE, SOLID, SOLID, EDGE, 0.8),
-    Tile("╗", TileCategory.FRAME, EDGE, SOLID, EDGE, SOLID, 0.8),
-    Tile("╚", TileCategory.FRAME, SOLID, EDGE, SOLID, EDGE, 0.8),
-    Tile("╝", TileCategory.FRAME, SOLID, EDGE, EDGE, SOLID, 0.8),
-    Tile("═", TileCategory.FRAME, ALL, ALL, SOLID | {TileCategory.FRAME}, SOLID | {TileCategory.FRAME}, 1.5),
-    Tile("║", TileCategory.FRAME, SOLID | {TileCategory.FRAME}, SOLID | {TileCategory.FRAME}, ALL, ALL, 1.5),
+    _Tile("╔", _TileCategory.FRAME, EDGE, SOLID, SOLID, EDGE, 0.8),
+    _Tile("╗", _TileCategory.FRAME, EDGE, SOLID, EDGE, SOLID, 0.8),
+    _Tile("╚", _TileCategory.FRAME, SOLID, EDGE, SOLID, EDGE, 0.8),
+    _Tile("╝", _TileCategory.FRAME, SOLID, EDGE, EDGE, SOLID, 0.8),
+    _Tile("═", _TileCategory.FRAME, ALL, ALL, SOLID | {_TileCategory.FRAME}, SOLID | {_TileCategory.FRAME}, 1.5),
+    _Tile("║", _TileCategory.FRAME, SOLID | {_TileCategory.FRAME}, SOLID | {_TileCategory.FRAME}, ALL, ALL, 1.5),
     # Pipes
-    Tile(
+    _Tile(
         "─",
-        TileCategory.PIPE,
+        _TileCategory.PIPE,
         ALL,
         ALL,
-        frozenset({TileCategory.PIPE, TileCategory.FRAME, TileCategory.HULL}),
-        frozenset({TileCategory.PIPE, TileCategory.FRAME, TileCategory.HULL}),
+        frozenset({_TileCategory.PIPE, _TileCategory.FRAME, _TileCategory.HULL}),
+        frozenset({_TileCategory.PIPE, _TileCategory.FRAME, _TileCategory.HULL}),
         0.5,
     ),
-    Tile(
+    _Tile(
         "│",
-        TileCategory.PIPE,
-        frozenset({TileCategory.PIPE, TileCategory.FRAME, TileCategory.ANTENNA}),
-        frozenset({TileCategory.PIPE, TileCategory.FRAME, TileCategory.HULL}),
+        _TileCategory.PIPE,
+        frozenset({_TileCategory.PIPE, _TileCategory.FRAME, _TileCategory.ANTENNA}),
+        frozenset({_TileCategory.PIPE, _TileCategory.FRAME, _TileCategory.HULL}),
         ALL,
         ALL,
         0.5,
     ),
-    Tile("┌", TileCategory.PIPE, EDGE | {TileCategory.HULL}, SOLID, SOLID, EDGE | {TileCategory.HULL}, 0.3),
-    Tile("┐", TileCategory.PIPE, EDGE | {TileCategory.HULL}, SOLID, EDGE | {TileCategory.HULL}, SOLID, 0.3),
-    Tile("└", TileCategory.PIPE, SOLID, EDGE | {TileCategory.HULL}, SOLID, EDGE | {TileCategory.HULL}, 0.3),
-    Tile("┘", TileCategory.PIPE, SOLID, EDGE | {TileCategory.HULL}, EDGE | {TileCategory.HULL}, SOLID, 0.3),
-    Tile("┬", TileCategory.PIPE, EDGE, SOLID, SOLID, SOLID, 0.2),
-    Tile("┴", TileCategory.PIPE, SOLID, EDGE, SOLID, SOLID, 0.2),
-    Tile("├", TileCategory.PIPE, SOLID, SOLID, SOLID, EDGE, 0.2),
-    Tile("┤", TileCategory.PIPE, SOLID, SOLID, EDGE, SOLID, 0.2),
+    _Tile("┌", _TileCategory.PIPE, EDGE | {_TileCategory.HULL}, SOLID, SOLID, EDGE | {_TileCategory.HULL}, 0.3),
+    _Tile("┐", _TileCategory.PIPE, EDGE | {_TileCategory.HULL}, SOLID, EDGE | {_TileCategory.HULL}, SOLID, 0.3),
+    _Tile("└", _TileCategory.PIPE, SOLID, EDGE | {_TileCategory.HULL}, SOLID, EDGE | {_TileCategory.HULL}, 0.3),
+    _Tile("┘", _TileCategory.PIPE, SOLID, EDGE | {_TileCategory.HULL}, EDGE | {_TileCategory.HULL}, SOLID, 0.3),
+    _Tile("┬", _TileCategory.PIPE, EDGE, SOLID, SOLID, SOLID, 0.2),
+    _Tile("┴", _TileCategory.PIPE, SOLID, EDGE, SOLID, SOLID, 0.2),
+    _Tile("├", _TileCategory.PIPE, SOLID, SOLID, SOLID, EDGE, 0.2),
+    _Tile("┤", _TileCategory.PIPE, SOLID, SOLID, EDGE, SOLID, 0.2),
     # Antenna
-    Tile("╥", TileCategory.ANTENNA, EDGE, SOLID, ALL, ALL, 0.1),
-    Tile("╨", TileCategory.ANTENNA, SOLID, EDGE, ALL, ALL, 0.1),
-    Tile(
+    _Tile("╥", _TileCategory.ANTENNA, EDGE, SOLID, ALL, ALL, 0.1),
+    _Tile("╨", _TileCategory.ANTENNA, SOLID, EDGE, ALL, ALL, 0.1),
+    _Tile(
         "↑",
-        TileCategory.ANTENNA,
+        _TileCategory.ANTENNA,
         EDGE,
-        frozenset({TileCategory.ANTENNA, TileCategory.FRAME, TileCategory.HULL}),
+        frozenset({_TileCategory.ANTENNA, _TileCategory.FRAME, _TileCategory.HULL}),
         EDGE,
         EDGE,
         0.08,
     ),
-    Tile("¤", TileCategory.ANTENNA, EDGE, frozenset({TileCategory.ANTENNA, TileCategory.FRAME}), EDGE, EDGE, 0.08),
+    _Tile("¤", _TileCategory.ANTENNA, EDGE, frozenset({_TileCategory.ANTENNA, _TileCategory.FRAME}), EDGE, EDGE, 0.08),
     # Windows
-    Tile("▪", TileCategory.WINDOW, SOLID, SOLID, SOLID, SOLID, 0.4),
-    Tile("▫", TileCategory.WINDOW, SOLID, SOLID, SOLID, SOLID, 0.4),
-    Tile("[", TileCategory.WINDOW, ALL, ALL, frozenset({TileCategory.WINDOW, TileCategory.HULL}), ALL, 0.2),
-    Tile("]", TileCategory.WINDOW, ALL, ALL, ALL, frozenset({TileCategory.WINDOW, TileCategory.HULL}), 0.2),
+    _Tile("▪", _TileCategory.WINDOW, SOLID, SOLID, SOLID, SOLID, 0.4),
+    _Tile("▫", _TileCategory.WINDOW, SOLID, SOLID, SOLID, SOLID, 0.4),
+    _Tile("[", _TileCategory.WINDOW, ALL, ALL, frozenset({_TileCategory.WINDOW, _TileCategory.HULL}), ALL, 0.2),
+    _Tile("]", _TileCategory.WINDOW, ALL, ALL, ALL, frozenset({_TileCategory.WINDOW, _TileCategory.HULL}), 0.2),
     # Docking
-    Tile(">", TileCategory.DOCK, ALL, ALL, EDGE, SOLID, 0.08),
-    Tile("<", TileCategory.DOCK, ALL, ALL, SOLID, EDGE, 0.08),
-    Tile("⊏", TileCategory.DOCK, SOLID, SOLID, SOLID, EDGE, 0.06),
-    Tile("⊐", TileCategory.DOCK, SOLID, SOLID, EDGE, SOLID, 0.06),
+    _Tile(">", _TileCategory.DOCK, ALL, ALL, EDGE, SOLID, 0.08),
+    _Tile("<", _TileCategory.DOCK, ALL, ALL, SOLID, EDGE, 0.08),
+    _Tile("⊏", _TileCategory.DOCK, SOLID, SOLID, SOLID, EDGE, 0.06),
+    _Tile("⊐", _TileCategory.DOCK, SOLID, SOLID, EDGE, SOLID, 0.06),
     # Empty
-    Tile(" ", TileCategory.EMPTY, ALL, ALL, ALL, ALL, 0.1),
+    _Tile(" ", _TileCategory.EMPTY, ALL, ALL, ALL, ALL, 0.1),
 ]
 
 
@@ -119,7 +121,7 @@ TILES: list[Tile] = [
 
 
 @dataclass(frozen=True)
-class ColorScheme:
+class _ColorScheme:
     """Color palette for a station: base shades + category accents."""
 
     base_shades: tuple[int, ...]
@@ -172,12 +174,12 @@ def _rotate_tuple(t: tuple[int, ...], n: int) -> tuple[int, ...]:
     return t[n:] + t[:n]
 
 
-def _make_color_scheme(seed: int) -> ColorScheme:
+def _make_color_scheme(seed: int) -> _ColorScheme:
     """Build a color scheme from the seed."""
     idx = seed % len(_BASE_HUES)
     hue = _BASE_HUES[idx]
     rotation = (seed >> 8) % 3
-    return ColorScheme(
+    return _ColorScheme(
         base_shades=hue["base"],
         pipe_accents=_rotate_tuple(hue["pipe"], rotation),
         window_accents=_rotate_tuple(hue["window"], rotation),
@@ -186,29 +188,29 @@ def _make_color_scheme(seed: int) -> ColorScheme:
     )
 
 
-def _color_for_tile(tile: Tile, x: int, y: int, scheme: ColorScheme, rng: random.Random) -> str:
+def _color_for_tile(tile: _Tile, x: int, y: int, scheme: _ColorScheme, rng: random.Random) -> str:
     """Pick ANSI 256-color code for a tile."""
     if tile.char == " ":
         return ""
     c = "\033[38;5;{}m"
-    if tile.category == TileCategory.HULL:
+    if tile.category == _TileCategory.HULL:
         idx = (x * 3 + y * 7 + rng.randint(0, 1)) % len(scheme.base_shades)
         return c.format(scheme.base_shades[idx])
-    if tile.category == TileCategory.FRAME:
+    if tile.category == _TileCategory.FRAME:
         if rng.random() < 0.3:
             return c.format(scheme.base_shades[-1])
         idx = (x + y * 5) % len(scheme.base_shades)
         return c.format(scheme.base_shades[idx])
-    if tile.category == TileCategory.PIPE:
+    if tile.category == _TileCategory.PIPE:
         idx = (x * 2 + y) % len(scheme.pipe_accents)
         return c.format(scheme.pipe_accents[idx])
-    if tile.category == TileCategory.WINDOW:
+    if tile.category == _TileCategory.WINDOW:
         idx = (x + y * 3) % len(scheme.window_accents)
         return c.format(scheme.window_accents[idx])
-    if tile.category == TileCategory.ANTENNA:
+    if tile.category == _TileCategory.ANTENNA:
         idx = (x + y) % len(scheme.antenna_accents)
         return c.format(scheme.antenna_accents[idx])
-    if tile.category == TileCategory.DOCK:
+    if tile.category == _TileCategory.DOCK:
         idx = (x + y) % len(scheme.dock_accents)
         return c.format(scheme.dock_accents[idx])
     return c.format(scheme.base_shades[0])
@@ -391,11 +393,11 @@ def generate_port_art(name: str, width: int, height: int) -> list[list[tuple[str
     gen_width = (width + 1) // 2 if config.symmetry else width
 
     # WFC collapse
-    grid: list[list[Tile | None]] = [[None] * gen_width for _ in range(height)]
-    h_runs: list[list[dict[TileCategory, int]]] = [[{} for _ in range(gen_width)] for _ in range(height)]
-    v_runs: list[list[dict[TileCategory, int]]] = [[{} for _ in range(gen_width)] for _ in range(height)]
+    grid: list[list[(_Tile) | None]] = [[None] * gen_width for _ in range(height)]
+    h_runs: list[list[dict[_TileCategory, int]]] = [[{} for _ in range(gen_width)] for _ in range(height)]
+    v_runs: list[list[dict[_TileCategory, int]]] = [[{} for _ in range(gen_width)] for _ in range(height)]
 
-    empty_tile = Tile(" ", TileCategory.EMPTY, ALL, ALL, ALL, ALL)
+    empty_tile = _Tile(" ", _TileCategory.EMPTY, ALL, ALL, ALL, ALL)
 
     for y in range(height):
         for x in range(gen_width):
@@ -409,7 +411,7 @@ def generate_port_art(name: str, width: int, height: int) -> list[list[tuple[str
                 grid[y][x] = empty_tile
                 continue
 
-            valid_categories: set[TileCategory] = set(TileCategory)
+            valid_categories: set[_TileCategory] = set(_TileCategory)
             if y > 0 and grid[y - 1][x] is not None:
                 north_tile = grid[y - 1][x]
                 assert north_tile is not None
@@ -419,13 +421,13 @@ def generate_port_art(name: str, width: int, height: int) -> list[list[tuple[str
                 assert west_tile is not None
                 valid_categories &= west_tile.east
             if not valid_categories:
-                valid_categories = {TileCategory.HULL, TileCategory.EMPTY}
+                valid_categories = {_TileCategory.HULL, _TileCategory.EMPTY}
 
             candidates = [t for t in TILES if t.category in valid_categories]
             if not candidates:
-                candidates = [t for t in TILES if t.category == TileCategory.HULL]
+                candidates = [t for t in TILES if t.category == _TileCategory.HULL]
 
-            neighbor_cats: list[TileCategory] = []
+            neighbor_cats: list[_TileCategory] = []
             if y > 0 and grid[y - 1][x] is not None:
                 north_tile = grid[y - 1][x]
                 assert north_tile is not None
@@ -449,7 +451,7 @@ def generate_port_art(name: str, width: int, height: int) -> list[list[tuple[str
                     v_run = v_runs[y - 1][x].get(tile.category, 0)
                     if v_run > 2:
                         w *= (1 - config.decay) ** (v_run - 2)
-                if tile.category == TileCategory.EMPTY:
+                if tile.category == _TileCategory.EMPTY:
                     w *= (1 - config.density) * 0.5
                 else:
                     w *= config.density
@@ -493,7 +495,7 @@ def generate_port_art(name: str, width: int, height: int) -> list[list[tuple[str
                 continue
 
             src_x = x if x < gen_width else width - 1 - x if config.symmetry else x
-            src_tile: Tile | None = grid[y][src_x] if src_x < gen_width else None
+            src_tile: (_Tile) | None = grid[y][src_x] if src_x < gen_width else None
 
             if src_tile is None:
                 row.append((" ", ""))
@@ -645,7 +647,7 @@ def compose_scene(
     has_planet: bool,
     has_stardock: bool,
     seed: int,
-) -> list[list[tuple[str, str]]]:
+) -> list[list[ArtCell]]:
     """Compose a full sector scene with all layers.
 
     Args:
@@ -657,7 +659,7 @@ def compose_scene(
         seed: RNG seed for starfield.
 
     Returns:
-        Composed grid of (character, ansi_color_escape) tuples.
+        Composed grid of ArtCell values.
     """
     canvas = generate_starfield(width, height, seed)
 
@@ -665,8 +667,9 @@ def compose_scene(
         planet = generate_planet_art(width, height)
         for y in range(height):
             for x in range(width):
-                if planet[y][x] is not None:
-                    canvas[y][x] = planet[y][x]  # type: ignore[assignment]
+                cell = planet[y][x]
+                if cell is not None:
+                    canvas[y][x] = cell
 
     if port_name:
         port_w = min(25, width // 3)
@@ -689,7 +692,8 @@ def compose_scene(
         stardock = generate_stardock_art(width, height)
         for y in range(height):
             for x in range(width):
-                if stardock[y][x] is not None:
-                    canvas[y][x] = stardock[y][x]  # type: ignore[assignment]
+                cell = stardock[y][x]
+                if cell is not None:
+                    canvas[y][x] = cell
 
-    return canvas
+    return [[ArtCell(char=c, color=clr) for c, clr in row] for row in canvas]

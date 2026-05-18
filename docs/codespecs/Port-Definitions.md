@@ -22,9 +22,11 @@ Explicit inheritance (rather than relying on structural matching alone) makes th
 
 4. **Ports speak domain types.** Parameters and return types are domain value objects, not primitives from third-party libraries. A port never exposes `requests.Response` or `psycopg2.cursor` — it exposes `SearchResult` or `list[JobEntry]`.
 
-5. **Ports document their exception contract.** The `Raises:` section in docstrings lists which domain exceptions callers should expect. This is part of the interface.
+5. **Ports are translation boundaries, not business logic.** Outbound ports translate domain requests to technology — store, retrieve, send, query. Inbound adapters translate technology requests to domain — parse external input, call use cases. Neither side orchestrates or computes. If implementing a port method requires domain logic, the method belongs in a use case.
 
-6. **Use `@override` on every method that implements a port.** This makes it explicit which methods fulfill the contract and catches signature mismatches.
+6. **Ports document their exception contract.** The `Raises:` section in docstrings lists which domain exceptions callers should expect. This is part of the interface.
+
+7. **Use `@override` on every method that implements a port.** This makes it explicit which methods fulfill the contract and catches signature mismatches.
 
 7. **ABC is an alternative for frameworks.** When building a framework where consumers implement the interface, `abc.ABC` with `@abstractmethod` provides stronger enforcement — you can't instantiate an incomplete implementation. Protocol is preferred for applications; ABC is appropriate when the interface is part of a public API that external code implements.
 
