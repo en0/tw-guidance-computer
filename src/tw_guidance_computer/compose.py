@@ -3,7 +3,12 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import final
+from typing import TYPE_CHECKING, final
+
+if TYPE_CHECKING:
+    from tw_guidance_computer.adapters.outbound.ini_profile_store import IniProfileStore
+    from tw_guidance_computer.application.create_profile import CreateProfile
+    from tw_guidance_computer.application.list_profiles import ListProfiles
 
 from tw_guidance_computer.adapters.outbound.log_reader import TailLogReader
 from tw_guidance_computer.adapters.outbound.sqlite_store import SqliteGameStateStore
@@ -63,3 +68,51 @@ class AppContext:
         if self.reader is not None:
             self.reader.close()
         self.store.close()
+
+
+def default_config_path() -> Path:
+    """Return the default config file path."""
+    return Path.home() / ".config" / "tw-guidance-computer" / "config.ini"
+
+
+def resolve_db_path(profile_name: str | None, config_path: Path | None = None) -> Path:
+    """Resolve the database path for the given profile.
+
+    Args:
+        profile_name: Profile to use, or None for the configured default.
+        config_path: Override config file location (for testing).
+
+    Returns:
+        Resolved database path.
+
+    Raises:
+        ConfigError: If the config file is malformed.
+        ProfileNotFoundError: If the requested profile doesn't exist.
+    """
+    from tw_guidance_computer.adapters.outbound.ini_profile_store import IniProfileStore
+
+    store = IniProfileStore(config_path or default_config_path())
+    store.ensure_config_exists()
+    effective_name = profile_name or store.list_profiles().default_name
+    profile = store.get_profile(effective_name)
+    return Path(profile.db_path)
+
+
+def build_profile_use_cases(
+    config_path: Path | None = None,
+) -> tuple[IniProfileStore, CreateProfile, ListProfiles]:
+    """Build profile-related use cases for CLI commands.
+
+    Args:
+        config_path: Override config file location (for testing).
+
+    Returns:
+        Tuple of (store, CreateProfile, ListProfiles).
+    """
+    from tw_guidance_computer.adapters.outbound.ini_profile_store import IniProfileStore
+    from tw_guidance_computer.application.create_profile import CreateProfile
+    from tw_guidance_computer.application.list_profiles import ListProfiles
+
+    store = IniProfileStore(config_path or default_config_path())
+    store.ensure_config_exists()
+    return store, CreateProfile(store), ListProfiles(store)

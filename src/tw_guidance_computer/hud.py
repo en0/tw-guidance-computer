@@ -7,9 +7,13 @@ import sys
 from pathlib import Path
 
 from tw_guidance_computer.adapters.inbound.tui import HudDisplay
-from tw_guidance_computer.compose import AppContext
-
-DEFAULT_DB_PATH = Path.home() / ".local" / "share" / "tw-guidance-computer" / "game.db"
+from tw_guidance_computer.compose import AppContext, build_profile_use_cases, resolve_db_path
+from tw_guidance_computer.domain.exceptions import (
+    ConfigError,
+    GuidanceError,
+    ProfileExistsError,
+    ProfileNotFoundError,
+)
 
 
 def main() -> None:
@@ -17,10 +21,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="TW2002 Guidance Computer — real-time HUD")
     parser.add_argument("logfile", type=Path, help="Path to the script session log file")
     parser.add_argument(
-        "--db",
-        type=Path,
-        default=DEFAULT_DB_PATH,
-        help=f"SQLite database path (default: {DEFAULT_DB_PATH})",
+        "-p", "--profile", type=str, default=None,
+        help="Profile to use (default: configured default)",
+    )
+    parser.add_argument(
+        "--create", action="store_true",
+        help="Create the profile if it doesn't exist",
     )
     parser.add_argument(
         "--parse-existing",
@@ -33,7 +39,24 @@ def main() -> None:
         print(f"Error: log file not found: {args.logfile}", file=sys.stderr)
         sys.exit(1)
 
-    ctx = AppContext(db_path=args.db, log_path=args.logfile)
+    if args.create and args.profile:
+        _, create_profile, _ = build_profile_use_cases()
+        try:
+            profile = create_profile.execute(args.profile)
+            print(f"Note: Created profile '{profile.name}' (db: {profile.db_path})", file=sys.stderr)
+        except ProfileExistsError:
+            pass  # Already exists, continue normally
+        except GuidanceError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+
+    try:
+        db_path = resolve_db_path(args.profile)
+    except (ConfigError, ProfileNotFoundError) as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    ctx = AppContext(db_path=db_path, log_path=args.logfile)
     assert ctx.reader is not None
 
     # Optionally parse existing log content first

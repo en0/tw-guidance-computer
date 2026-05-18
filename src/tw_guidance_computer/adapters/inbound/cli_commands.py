@@ -218,3 +218,24 @@ class CliAdapter:
                     else:
                         parts.append(cell.char)
                 print("".join(parts))
+
+    def profile_create(self, name: str) -> None:
+        """Create a new profile."""
+        with _cli_boundary():
+            if self._uc.create_profile is None:
+                print("Error: Profile commands not available.", file=sys.stderr)
+                sys.exit(1)
+            profile = self._uc.create_profile.execute(name)
+            print(f"Created profile '{profile.name}' (db: {profile.db_path})")
+
+    def profile_list(self) -> None:
+        """List all profiles."""
+        with _cli_boundary():
+            if self._uc.list_profiles is None:
+                print("Error: Profile commands not available.", file=sys.stderr)
+                sys.exit(1)
+            listing = self._uc.list_profiles.execute()
+            for profile in listing.profiles:
+                marker = "  * " if profile.name == listing.default_name else "    "
+                suffix = " (default)" if profile.name == listing.default_name else ""
+                print(f"{marker}{profile.name}{suffix}")

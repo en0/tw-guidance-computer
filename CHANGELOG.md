@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.4.0
+
+### New Features
+
+- **Profile-based configuration**: Named profiles replace the `--db` flag for managing multiple servers
+  - Config file at `~/.config/tw-guidance-computer/config.ini` (plain INI, editable with any text editor)
+  - `tw profile create <name>` — create a new profile with auto-generated DB path
+  - `tw profile list` — list all profiles, marking the default with `*`
+  - `--profile / -p` flag on both `tw` and `tw-hud` to select a profile
+  - `--create` flag on `tw-hud` for inline profile creation when starting a new server
+  - Default profile used automatically when no `--profile` specified
+  - Auto-migration on first run: creates config pointing to existing DB — no data loss on upgrade
+- **`--db` flag removed** from both `tw` and `tw-hud`
+
+### Architecture
+
+- New domain models: `Profile`, `ProfileListing` (frozen dataclasses with validation)
+- New domain exceptions: `ProfileNotFoundError`, `ProfileExistsError`, `ConfigError`
+- New port: `ProfileStore` protocol (abstracts config file I/O)
+- New adapter: `IniProfileStore` (configparser-based, `[profile:name]` namespaced sections)
+- New use cases: `CreateProfile`, `ListProfiles`
+- Composition root resolves profile → discrete `db_path: Path` passed downstream (no config god object)
+
 ## 0.3.1
 
 ### Architecture

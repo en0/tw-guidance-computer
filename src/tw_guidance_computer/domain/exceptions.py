@@ -27,3 +27,15 @@ class StorageError(GuidanceError):
 
 class LogReadError(GuidanceError):
     """Raised when reading the session log fails."""
+
+
+class ProfileNotFoundError(GuidanceError):
+    """Raised when a profile is not in the config."""
+
+
+class ProfileExistsError(GuidanceError):
+    """Raised when trying to create a profile that already exists."""
+
+
+class ConfigError(GuidanceError):
+    """Raised when the config file is malformed or unreadable."""

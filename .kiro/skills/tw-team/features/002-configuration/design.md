@@ -1,6 +1,6 @@
 # Feature Design: Profile-Based Configuration
 
-STATUS: iideation
+STATUS: building
 
 ## Use Cases (from user — do not modify)
 1. As a user, I don't want to track DB files or configuration details after they are setup. The system should remember them under a profile.
@@ -31,32 +31,25 @@ The guidance computer currently requires users to manually specify `--db` paths 
 
 Location: `~/.config/tw-guidance-computer/config.ini`
 
-Format: INI with `[DEFAULT]` section for globals that cascade to all profiles.
-
-```
-[DEFAULT]
-experimental = false
-
-[default]
-db = ~/.local/share/tw-guidance-computer/game.db
-
-[saintcon]
-db = ~/.local/share/tw-guidance-computer/saintcon.db
-experimental = true
-
-[practice]
-db = ~/.local/share/tw-guidance-computer/practice.db
-```
-
-The `[DEFAULT]` section provides fallback values for all profile sections (standard `configparser` behavior). Individual profiles override as needed.
-
-A special key `default_profile` in `[DEFAULT]` specifies which profile to use when none is given:
+Format: INI with `[DEFAULT]` section for globals that cascade to all profile sections (standard `configparser` behavior). Profile sections are namespaced as `[profile:<name>]` to leave room for future non-profile config sections.
 
 ```
 [DEFAULT]
 default_profile = saintcon
 experimental = false
+
+[profile:default]
+db = ~/.local/share/tw-guidance-computer/game.db
+
+[profile:saintcon]
+db = ~/.local/share/tw-guidance-computer/saintcon.db
+experimental = true
+
+[profile:practice]
+db = ~/.local/share/tw-guidance-computer/practice.db
 ```
+
+A special key `default_profile` in `[DEFAULT]` specifies which profile to use when none is given. If `default_profile` is not set, the profile named `default` is used.
 
 ### Profile Selection
 
@@ -82,7 +75,7 @@ tw profile create <name>
 Creates a new profile section in the config file with an auto-generated DB path:
 
 ```
-[newserver]
+[profile:newserver]
 db = ~/.local/share/tw-guidance-computer/newserver.db
 ```
 
@@ -126,7 +119,7 @@ When `tw` or `tw-hud` starts and no config file exists at `~/.config/tw-guidance
    [DEFAULT]
    default_profile = default
 
-   [default]
+   [profile:default]
    db = ~/.local/share/tw-guidance-computer/game.db
    ```
 3. If the DB already exists at the default path, the user's data is preserved — the config just points to it.

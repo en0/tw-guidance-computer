@@ -6,6 +6,7 @@ from tw_guidance_computer.domain.models.chat import ChatMessage
 from tw_guidance_computer.domain.models.planet import Planet
 from tw_guidance_computer.domain.models.player import PlayerStatus
 from tw_guidance_computer.domain.models.port import NearbyPort, Port, PortCommodity
+from tw_guidance_computer.domain.models.profile import Profile, ProfileListing
 from tw_guidance_computer.domain.models.sector import Sector, WarpConnection
 from tw_guidance_computer.domain.models.summary import DatabaseSummary, SectorDetail
 from tw_guidance_computer.domain.models.trade import NearestPair, SellRecommendation, TradePair
@@ -21,6 +22,8 @@ __all__ = [
     "NearestPair",
     "Planet",
     "PlayerStatus",
+    "Profile",
+    "ProfileListing",
     "Port",
     "PortCommodity",
     "Sector",
