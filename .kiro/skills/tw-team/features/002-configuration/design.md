@@ -1,6 +1,6 @@
 # Feature Design: Profile-Based Configuration
 
-STATUS: building
+STATUS: complete
 
 ## Use Cases (from user — do not modify)
 1. As a user, I don't want to track DB files or configuration details after they are setup. The system should remember them under a profile.

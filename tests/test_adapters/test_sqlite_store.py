@@ -117,3 +117,29 @@ class TestSqliteGameStateStore:
         store.upsert_planet(make_planet(sector_id=5, name="X", planet_class="M"))
         store.upsert_planet(make_planet(sector_id=5, name="X", planet_class="K"))
         assert store.has_planet(5) is True
+
+
+class TestGetSafeSectorIds:
+    def test_returns_federation_sectors(self, store):
+        store.upsert_sector(Sector(id=1, region="The Federation", explored=True))
+        store.upsert_sector(Sector(id=500, region="uncharted space", explored=True))
+        result = store.get_safe_sector_ids()
+        assert 1 in result
+        assert 500 not in result
+
+    def test_returns_stardock_sectors(self, store):
+        store.upsert_port(Port(sector_id=42, name="StarDock", port_class=0, port_type=""))
+        result = store.get_safe_sector_ids()
+        assert 42 in result
+
+    def test_returns_union_without_duplicates(self, store):
+        store.upsert_sector(Sector(id=1, region="The Federation", explored=True))
+        store.upsert_port(Port(sector_id=1, name="Sol", port_class=0, port_type=""))
+        result = store.get_safe_sector_ids()
+        assert result.count(1) == 1
+
+    def test_returns_empty_when_no_safe_sectors(self, store):
+        store.upsert_sector(Sector(id=500, region="uncharted space", explored=True))
+        store.upsert_port(Port(sector_id=600, name="Trader Vic's", port_class=6, port_type="SBS"))
+        result = store.get_safe_sector_ids()
+        assert result == []

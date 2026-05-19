@@ -219,6 +219,27 @@ class CliAdapter:
                         parts.append(cell.char)
                 print("".join(parts))
 
+    def safe_harbor(self) -> None:
+        """Show nearest safe sector and route from current position."""
+        with _cli_boundary():
+            status = self._uc.get_player_status.execute()
+            if status is None:
+                print("Error: No player position known. Play a session first.", file=sys.stderr)
+                raise SystemExit(1)
+
+            result = self._uc.find_safe_harbor.execute(status.sector_id)
+
+            if result is None:
+                print(f"No known route to safe space from sector {status.sector_id}.")
+                print("Explore more sectors to find a path to The Federation or StarDock.")
+            elif result.hops == 0:
+                print(f"You are currently in a safe sector ({result.destination_name}).")
+            else:
+                route_str = " \u2192 ".join(str(s) for s in result.route)
+                print(f"Safe harbor from sector {status.sector_id}:")
+                print(f"  Nearest: Sector {result.destination_sector} ({result.destination_name})")
+                print(f"  Route: {route_str} ({result.hops} hops)")
+
     def profile_create(self, name: str) -> None:
         """Create a new profile."""
         with _cli_boundary():

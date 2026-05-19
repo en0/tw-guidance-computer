@@ -284,6 +284,15 @@ class SqliteGameStateStore(GameStateStore):
         ).fetchone()
         return row is not None
 
+    @override
+    def get_safe_sector_ids(self) -> list[int]:
+        rows = self._exec(
+            "SELECT id FROM sectors WHERE region = 'The Federation' "
+            "UNION "
+            "SELECT sector_id FROM ports WHERE port_class = 0",
+        ).fetchall()
+        return [row[0] for row in rows]
+
     def close(self) -> None:
         """Close the database connection."""
         self._conn.close()

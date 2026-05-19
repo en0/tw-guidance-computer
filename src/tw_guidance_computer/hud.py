@@ -7,12 +7,13 @@ import sys
 from pathlib import Path
 
 from tw_guidance_computer.adapters.inbound.tui import HudDisplay
-from tw_guidance_computer.compose import AppContext, build_profile_use_cases, resolve_db_path
+from tw_guidance_computer.compose import AppContext, build_profile_use_cases, resolve_config
 from tw_guidance_computer.domain.exceptions import (
     ConfigError,
     GuidanceError,
     ProfileExistsError,
     ProfileNotFoundError,
+    ValidationError,
 )
 
 
@@ -51,8 +52,8 @@ def main() -> None:
             sys.exit(1)
 
     try:
-        db_path = resolve_db_path(args.profile)
-    except (ConfigError, ProfileNotFoundError) as e:
+        db_path, thresholds = resolve_config(args.profile)
+    except (ConfigError, ProfileNotFoundError, ValidationError) as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -64,7 +65,7 @@ def main() -> None:
         full_text = ctx.reader.read_full()
         ctx.use_cases.parse_log_chunk.execute(full_text)
 
-    hud = HudDisplay(reader=ctx.reader, use_cases=ctx.use_cases)
+    hud = HudDisplay(reader=ctx.reader, use_cases=ctx.use_cases, turn_thresholds=thresholds)
 
     try:
         hud.run()

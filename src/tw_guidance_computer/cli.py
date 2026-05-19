@@ -7,7 +7,12 @@ import sys
 
 from tw_guidance_computer.adapters.inbound.cli_commands import CliAdapter
 from tw_guidance_computer.compose import AppContext, resolve_db_path
-from tw_guidance_computer.domain.exceptions import ConfigError, GuidanceError, ProfileNotFoundError
+from tw_guidance_computer.domain.exceptions import (
+    ConfigError,
+    GuidanceError,
+    ProfileNotFoundError,
+    ValidationError,
+)
 
 
 def _handle_profile_command(args: argparse.Namespace) -> None:
@@ -73,6 +78,8 @@ def main() -> None:
     p = sub.add_parser("sector-art", help="View sector art for a visited sector")
     p.add_argument("sector", type=int)
 
+    sub.add_parser("safe-harbor", help="Show nearest safe sector and route")
+
     profile_parser = sub.add_parser("profile", help="Manage profiles")
     profile_sub = profile_parser.add_subparsers(dest="profile_command")
     p = profile_sub.add_parser("create", help="Create a new profile")
@@ -94,7 +101,7 @@ def main() -> None:
 
     try:
         db_path = resolve_db_path(args.profile)
-    except (ConfigError, ProfileNotFoundError) as e:
+    except (ConfigError, ProfileNotFoundError, ValidationError) as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -129,5 +136,7 @@ def main() -> None:
                 cli.chat()
             case "sector-art":
                 cli.sector_art(args.sector)
+            case "safe-harbor":
+                cli.safe_harbor()
     finally:
         ctx.close()

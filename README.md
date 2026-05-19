@@ -94,6 +94,18 @@ uv run ruff check src/  # lint
 
 This project uses an AI development team for new features. See [`.kiro/README.md`](.kiro/README.md) for the workflow.
 
+## Profiles
+
+Configuration is managed through named profiles in `~/.config/tw-guidance-computer/config.ini`. Use `--profile` / `-p` to select a profile, or set a default in the config file.
+
+```bash
+tw profile create saintcon       # create a new profile
+tw -p saintcon pairs             # use a specific profile
+tw-hud -p saintcon --create log  # create + launch in one step
+```
+
+See the [migration guide](docs/migration-from-db-flag.md) if you were previously using the `--db` flag.
+
 ## Data
 
 The SQLite database persists at `~/.local/share/tw-guidance-computer/game.db` and accumulates knowledge across sessions.

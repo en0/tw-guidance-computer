@@ -6,6 +6,7 @@ from tw_guidance_computer.application.create_profile import CreateProfile
 from tw_guidance_computer.application.find_nearby_ports import FindNearbyPorts
 from tw_guidance_computer.application.find_nearest_pair import FindNearestPair
 from tw_guidance_computer.application.find_path import FindPath
+from tw_guidance_computer.application.find_safe_harbor import FindSafeHarbor
 from tw_guidance_computer.application.find_sell_locations import FindSellLocations
 from tw_guidance_computer.application.find_trade_pairs import FindTradePairs
 from tw_guidance_computer.application.get_database_summary import GetDatabaseSummary
@@ -36,5 +37,6 @@ class UseCases:
     list_ports: ListPorts
     get_recent_chat: GetRecentChat
     get_database_summary: GetDatabaseSummary
+    find_safe_harbor: FindSafeHarbor
     create_profile: CreateProfile | None = None
     list_profiles: ListProfiles | None = None

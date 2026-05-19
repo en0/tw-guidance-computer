@@ -14,6 +14,9 @@ from tw_guidance_computer.domain.models import Profile, ProfileListing
 _DEFAULT_CONFIG = """\
 [DEFAULT]
 default_profile = default
+turn_warning_yellow = 200
+turn_warning_red = 100
+turn_alert_threshold = 50
 
 [profile:default]
 db = ~/.local/share/tw-guidance-computer/game.db
@@ -90,6 +93,25 @@ class IniProfileStore(ProfileStore):
                 cfg.write(f)
         except configparser.Error as e:
             raise ConfigError(str(e)) from e
+
+    def get_config_value(self, profile_name: str, key: str, default: str) -> str:
+        """Read a config value from a profile section with DEFAULT fallback.
+
+        Reads from [profile:{profile_name}] section. Falls back to [DEFAULT]
+        section via configparser's built-in cascade. If key not found anywhere,
+        returns the provided default.
+
+        Args:
+            profile_name: The profile section to read from.
+            key: The config key to look up.
+            default: Value to return if key not found.
+
+        Returns:
+            The config value as a string.
+        """
+        cfg = self._read_config()
+        section = f"{_SECTION_PREFIX}{profile_name}"
+        return cfg.get(section, key, fallback=default)
 
     def _read_config(self) -> configparser.ConfigParser:
         """Read and return the config parser instance."""

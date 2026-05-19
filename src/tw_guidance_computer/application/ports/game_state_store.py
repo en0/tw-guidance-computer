@@ -187,3 +187,17 @@ class GameStateStore(Protocol):
             StorageError: If the read fails.
         """
         ...
+
+    def get_safe_sector_ids(self) -> list[int]:
+        """Get sector IDs that are safe destinations.
+
+        Returns sectors in Federation space (region == 'The Federation')
+        and sectors containing StarDock (port_class == 0).
+
+        Returns:
+            List of unique sector IDs considered safe.
+
+        Raises:
+            StorageError: If the read fails.
+        """
+        ...

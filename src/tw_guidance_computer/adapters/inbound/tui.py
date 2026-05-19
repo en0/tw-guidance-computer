@@ -8,9 +8,10 @@ import sys
 import time
 from typing import TYPE_CHECKING, final
 
+from tw_guidance_computer.adapters.inbound.alert_overlay import format_alert_overlay
 from tw_guidance_computer.application.ports.log_reader import LogReader
 from tw_guidance_computer.domain.exceptions import GuidanceError
-from tw_guidance_computer.domain.models import ArtCell, PlayerStatus
+from tw_guidance_computer.domain.models import ArtCell, PlayerStatus, SafeHarborRoute, TurnThresholds
 
 if TYPE_CHECKING:
     from tw_guidance_computer.application.use_cases import UseCases
@@ -28,15 +29,18 @@ class HudDisplay:
         self,
         reader: LogReader,
         use_cases: UseCases,
+        turn_thresholds: TurnThresholds | None = None,
     ) -> None:
         """Initialize the HUD.
 
         Args:
             reader: Log reader for new data.
             use_cases: Pre-wired use case container.
+            turn_thresholds: Turn warning thresholds (uses defaults if None).
         """
         self._reader = reader
         self._uc = use_cases
+        self._thresholds = turn_thresholds or TurnThresholds()
         self._running = True
         self._pairs_mode = "best"  # "best" or "nearest"
         self._art_cache: list[list[ArtCell]] | None = None
@@ -44,6 +48,8 @@ class HudDisplay:
         self._art_size: tuple[int, int] = (0, 0)
         self._color_pair_map: dict[int, int] = {}
         self._next_pair_id = 10
+        self._safe_harbor_cache: SafeHarborRoute | None = None
+        self._safe_harbor_sector: int | None = None
 
     def run(self) -> None:
         """Start the HUD display loop."""
@@ -132,6 +138,16 @@ class HudDisplay:
         # Footer
         self._safe_addstr(stdscr, max_y - 1, 0, " [q] quit  [t] toggle pairs ", curses.A_REVERSE)
 
+        # Safe harbor overlay
+        if status and status.turns_remaining < self._thresholds.alert:
+            if self._safe_harbor_sector != status.sector_id:
+                self._safe_harbor_cache = self._uc.find_safe_harbor.execute(status.sector_id)
+                self._safe_harbor_sector = status.sector_id
+            self._render_alert_overlay(stdscr, max_y, max_x, status.turns_remaining, status.sector_id)
+        elif self._safe_harbor_cache is not None:
+            self._safe_harbor_cache = None
+            self._safe_harbor_sector = None
+
     def _render_header(self, stdscr: curses.window, max_x: int, status: PlayerStatus | None) -> None:
         header = " TW2002 GUIDANCE COMPUTER "
         self._safe_addstr(stdscr, 0, 0, "═" * max_x, curses.color_pair(2))
@@ -148,10 +164,12 @@ class HudDisplay:
             self._safe_addstr(stdscr, 1, col, "  │  ", curses.color_pair(3))
             col += 5
             # Turns with color warning
-            if status.turns_remaining < 50:
-                turns_attr = curses.color_pair(4) | curses.A_BOLD  # red
-            elif status.turns_remaining < 100:
-                turns_attr = curses.color_pair(3) | curses.A_BOLD | curses.A_REVERSE  # yellow inverse
+            if status.turns_remaining < self._thresholds.alert:
+                turns_attr = curses.color_pair(4) | curses.A_BOLD
+            elif status.turns_remaining < self._thresholds.red:
+                turns_attr = curses.color_pair(4) | curses.A_BOLD
+            elif status.turns_remaining < self._thresholds.yellow:
+                turns_attr = curses.color_pair(3) | curses.A_BOLD | curses.A_REVERSE
             else:
                 turns_attr = curses.color_pair(3) | curses.A_BOLD
             self._safe_addstr(stdscr, 1, col, turns, turns_attr)
@@ -319,6 +337,36 @@ class HudDisplay:
                     stdscr.addstr(screen_y, x, cell.char, attr)
                 except curses.error:
                     pass
+
+    def _render_alert_overlay(self, stdscr: curses.window, max_y: int, max_x: int, turns: int, sector: int) -> None:
+        """Render the RED ALERT overlay centered on screen."""
+        lines = format_alert_overlay(self._safe_harbor_cache, turns)
+
+        content_width = max(len(line) for line in lines) + 4
+        box_width = min(content_width + 4, max_x - 4)
+        box_height = len(lines) + 4
+
+        start_y = max(0, (max_y - box_height) // 2)
+        start_x = max(0, (max_x - box_width) // 2)
+
+        attr = curses.color_pair(4) | curses.A_BOLD
+
+        header = " RED ALERT "
+        pad_left = (box_width - 2 - len(header)) // 2
+        pad_right = (box_width - 2 - len(header) + 1) // 2
+        top_border = "╔" + "═" * pad_left + header + "═" * pad_right + "╗"
+        bot_border = "╚" + "═" * (box_width - 2) + "╝"
+
+        self._safe_addstr(stdscr, start_y, start_x, top_border, attr)
+        for i in range(1, box_height - 1):
+            self._safe_addstr(stdscr, start_y + i, start_x, "║" + " " * (box_width - 2) + "║", attr)
+        self._safe_addstr(stdscr, start_y + box_height - 1, start_x, bot_border, attr)
+
+        content_start_y = start_y + 2
+        for i, line in enumerate(lines):
+            if content_start_y + i >= start_y + box_height - 1:
+                break
+            self._safe_addstr(stdscr, content_start_y + i, start_x + 3, line[: box_width - 6], attr)
 
     def _get_color_pair(self, ansi_escape: str) -> int:
         if not ansi_escape:

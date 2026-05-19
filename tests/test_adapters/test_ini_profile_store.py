@@ -114,3 +114,27 @@ class TestConfigError:
 
         with pytest.raises(ConfigError):
             store.get_profile("bad")
+
+
+class TestGetConfigValue:
+    def test_reads_from_profile_section(self, store, config_path):
+        config_path.parent.mkdir(parents=True)
+        config_path.write_text("[DEFAULT]\nfoo = default_val\n\n[profile:myprof]\nfoo = profile_val\n")
+
+        result = store.get_config_value("myprof", "foo", "fallback")
+
+        assert result == "profile_val"
+
+    def test_falls_back_to_default_section(self, store, config_path):
+        store.ensure_config_exists()
+
+        result = store.get_config_value("default", "turn_warning_yellow", "999")
+
+        assert result == "200"
+
+    def test_falls_back_to_provided_default(self, store, config_path):
+        store.ensure_config_exists()
+
+        result = store.get_config_value("default", "nonexistent_key", "my_fallback")
+
+        assert result == "my_fallback"

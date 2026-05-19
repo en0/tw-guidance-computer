@@ -4,8 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from tw_guidance_computer.compose import resolve_db_path
-from tw_guidance_computer.domain.exceptions import ProfileNotFoundError
+from tw_guidance_computer.compose import resolve_config, resolve_db_path
+from tw_guidance_computer.domain.exceptions import ProfileNotFoundError, ValidationError
+from tw_guidance_computer.domain.models import TurnThresholds
 
 
 class TestResolveDbPath:
@@ -44,3 +45,44 @@ class TestResolveDbPath:
 
         with pytest.raises(ProfileNotFoundError, match="nonexistent"):
             resolve_db_path("nonexistent", config_path=config_path)
+
+
+class TestResolveConfig:
+    def test_returns_default_thresholds(self, tmp_path: Path) -> None:
+        config_path = tmp_path / "config.ini"
+
+        db_path, thresholds = resolve_config(None, config_path=config_path)
+
+        assert db_path == Path.home() / ".local" / "share" / "tw-guidance-computer" / "game.db"
+        assert thresholds == TurnThresholds(yellow=200, red=100, alert=50)
+
+    def test_reads_custom_thresholds(self, tmp_path: Path) -> None:
+        config_path = tmp_path / "config.ini"
+        config_path.write_text(
+            "[DEFAULT]\n"
+            "default_profile = default\n\n"
+            "[profile:default]\n"
+            "db = ~/.local/share/tw-guidance-computer/game.db\n"
+            "turn_warning_yellow = 300\n"
+            "turn_warning_red = 150\n"
+            "turn_alert_threshold = 75\n"
+        )
+
+        _, thresholds = resolve_config(None, config_path=config_path)
+
+        assert thresholds == TurnThresholds(yellow=300, red=150, alert=75)
+
+    def test_invalid_thresholds_raise_validation_error(self, tmp_path: Path) -> None:
+        config_path = tmp_path / "config.ini"
+        config_path.write_text(
+            "[DEFAULT]\n"
+            "default_profile = default\n\n"
+            "[profile:default]\n"
+            "db = ~/.local/share/tw-guidance-computer/game.db\n"
+            "turn_warning_yellow = 50\n"
+            "turn_warning_red = 100\n"
+            "turn_alert_threshold = 200\n"
+        )
+
+        with pytest.raises(ValidationError):
+            resolve_config(None, config_path=config_path)

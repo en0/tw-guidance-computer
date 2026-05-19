@@ -9,12 +9,14 @@ if TYPE_CHECKING:
     from tw_guidance_computer.adapters.outbound.ini_profile_store import IniProfileStore
     from tw_guidance_computer.application.create_profile import CreateProfile
     from tw_guidance_computer.application.list_profiles import ListProfiles
+    from tw_guidance_computer.domain.models import TurnThresholds
 
 from tw_guidance_computer.adapters.outbound.log_reader import TailLogReader
 from tw_guidance_computer.adapters.outbound.sqlite_store import SqliteGameStateStore
 from tw_guidance_computer.application.find_nearby_ports import FindNearbyPorts
 from tw_guidance_computer.application.find_nearest_pair import FindNearestPair
 from tw_guidance_computer.application.find_path import FindPath
+from tw_guidance_computer.application.find_safe_harbor import FindSafeHarbor
 from tw_guidance_computer.application.find_sell_locations import FindSellLocations
 from tw_guidance_computer.application.find_trade_pairs import FindTradePairs
 from tw_guidance_computer.application.get_database_summary import GetDatabaseSummary
@@ -57,6 +59,7 @@ class AppContext:
             list_ports=ListPorts(self.store),
             get_recent_chat=GetRecentChat(self.store),
             get_database_summary=GetDatabaseSummary(self.store),
+            find_safe_harbor=FindSafeHarbor(self.store),
         )
 
         self.reader: TailLogReader | None = None
@@ -75,6 +78,38 @@ def default_config_path() -> Path:
     return Path.home() / ".config" / "tw-guidance-computer" / "config.ini"
 
 
+def resolve_config(profile_name: str | None, config_path: Path | None = None) -> tuple[Path, TurnThresholds]:
+    """Resolve database path and turn thresholds from config.
+
+    Args:
+        profile_name: Profile to use, or None for the configured default.
+        config_path: Override config file location (for testing).
+
+    Returns:
+        Tuple of (db_path, turn_thresholds).
+
+    Raises:
+        ConfigError: If the config file is malformed.
+        ProfileNotFoundError: If the requested profile doesn't exist.
+        ValidationError: If threshold values are invalid.
+    """
+    from tw_guidance_computer.adapters.outbound.ini_profile_store import IniProfileStore
+    from tw_guidance_computer.domain.models import TurnThresholds
+
+    store = IniProfileStore(config_path or default_config_path())
+    store.ensure_config_exists()
+    effective_name = profile_name or store.list_profiles().default_name
+    profile = store.get_profile(effective_name)
+    db_path = Path(profile.db_path)
+
+    yellow = int(store.get_config_value(effective_name, "turn_warning_yellow", "200"))
+    red = int(store.get_config_value(effective_name, "turn_warning_red", "100"))
+    alert = int(store.get_config_value(effective_name, "turn_alert_threshold", "50"))
+    thresholds = TurnThresholds(yellow=yellow, red=red, alert=alert)
+
+    return db_path, thresholds
+
+
 def resolve_db_path(profile_name: str | None, config_path: Path | None = None) -> Path:
     """Resolve the database path for the given profile.
 
@@ -89,13 +124,8 @@ def resolve_db_path(profile_name: str | None, config_path: Path | None = None) -
         ConfigError: If the config file is malformed.
         ProfileNotFoundError: If the requested profile doesn't exist.
     """
-    from tw_guidance_computer.adapters.outbound.ini_profile_store import IniProfileStore
-
-    store = IniProfileStore(config_path or default_config_path())
-    store.ensure_config_exists()
-    effective_name = profile_name or store.list_profiles().default_name
-    profile = store.get_profile(effective_name)
-    return Path(profile.db_path)
+    db_path, _ = resolve_config(profile_name, config_path)
+    return db_path
 
 
 def build_profile_use_cases(

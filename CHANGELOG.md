@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.5.0
+
+### New Features
+
+- **Safe Harbor RED ALERT**: When turns drop below threshold (default 50), a centered overlay shows the fastest BFS route to the nearest safe sector (Federation space or StarDock)
+  - Three overlay states: route found, already safe, no known route ("Uhoh, I think you're in trouble.")
+  - Auto-clears when turns recover above threshold — no manual dismissal
+  - Route recalculates on sector change (cached between changes)
+- **`tw safe-harbor`**: CLI command to check nearest safe sector and route on demand, regardless of turn count
+- **Turn warning color adjustment**: Yellow at 200 turns, yellow+reverse at 100–199, red below 100
+- **Configurable thresholds**: `turn_warning_yellow`, `turn_warning_red`, `turn_alert_threshold` in config.ini, overridable per-profile
+
+### Architecture
+
+- New domain models: `SafeHarborRoute`, `TurnThresholds` (frozen dataclasses with validation)
+- New use case: `FindSafeHarbor` — BFS to nearest Federation/StarDock sector
+- New port method: `get_safe_sector_ids()` on `GameStateStore`
+- New helper: `format_alert_overlay()` — pure function for testable overlay content generation
+- Composition root consolidated: `resolve_config()` constructs `IniProfileStore` once for both db_path and thresholds
+
 ## 0.4.0
 
 ### New Features
@@ -13,6 +33,11 @@
   - Default profile used automatically when no `--profile` specified
   - Auto-migration on first run: creates config pointing to existing DB — no data loss on upgrade
 - **`--db` flag removed** from both `tw` and `tw-hud`
+- **Migration guide**: [docs/migration-from-db-flag.md](docs/migration-from-db-flag.md) for users transitioning from `--db`
+
+### Fixes
+
+- `ValidationError` from malformed config now caught cleanly in CLI (no traceback)
 
 ### Architecture
 
