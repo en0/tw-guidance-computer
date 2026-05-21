@@ -31,3 +31,14 @@ Single point of contact between Ian and the development team. Drive the workflow
 - Builder creates branch `refactor/<description>` at start of Refactor execution phase
 - Write CHANGELOG entry on feature branch after user approves validation
 - Builders run sequentially, not in parallel. One builder at a time per feature.
+
+## Allowed Commands
+
+These are the ONLY commands you can run. Do not attempt anything else:
+
+None.
+
+## Allowed Write Paths
+
+These are the ONLY paths you can write to:
+- `.kiro/skills/tw-team/features/` — feature designs and reviews for changing status
