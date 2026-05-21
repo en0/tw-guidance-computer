@@ -2,15 +2,20 @@
 
 from __future__ import annotations
 
+import argparse
 import sys
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, final
 
 from tw_guidance_computer.domain.exceptions import GuidanceError, PathNotFoundError
 
 if TYPE_CHECKING:
+    from tw_guidance_computer.application.create_profile import CreateProfile
+    from tw_guidance_computer.application.list_profiles import ListProfiles
     from tw_guidance_computer.application.use_cases import UseCases
+
+GameContextFactory = Callable[[str | None], tuple["UseCases", Callable[[], None]]]
 
 
 @contextmanager
@@ -27,17 +32,151 @@ def _cli_boundary() -> Iterator[None]:
 class CliAdapter:
     """Handles CLI command dispatch and output formatting."""
 
-    def __init__(self, use_cases: UseCases) -> None:
-        """Initialize with use cases.
+    def __init__(
+        self,
+        *,
+        create_profile: CreateProfile,
+        list_profiles: ListProfiles,
+        game_context_factory: GameContextFactory,
+    ) -> None:
+        """Initialize with profile use cases and a game context factory.
 
         Args:
-            use_cases: Pre-wired use case container.
+            create_profile: Use case for creating profiles.
+            list_profiles: Use case for listing profiles.
+            game_context_factory: Callable that takes a profile name and returns (UseCases, close_fn).
         """
-        self._uc = use_cases
+        self._create_profile = create_profile
+        self._list_profiles = list_profiles
+        self._game_context_factory = game_context_factory
+        self._uc: UseCases | None = None
+
+    def run(self, argv: list[str] | None = None) -> None:
+        """Parse arguments and dispatch to the appropriate handler.
+
+        Args:
+            argv: Command-line arguments (defaults to sys.argv[1:]).
+        """
+        parser = self._build_parser()
+        args = parser.parse_args(argv)
+        if not args.command:
+            parser.print_help()
+            sys.exit(0)
+
+        with _cli_boundary():
+            if args.command == "profile":
+                self._dispatch_profile(args)
+            else:
+                self._dispatch_game(args)
+
+    def _build_parser(self) -> argparse.ArgumentParser:
+        """Build the full argparse parser with all subcommands."""
+        parser = argparse.ArgumentParser(description="TW2002 Guidance Computer — query tool")
+        parser.add_argument(
+            "-p", "--profile", type=str, default=None,
+            help="Profile to use (default: configured default)",
+        )
+        sub = parser.add_subparsers(dest="command")
+
+        sub.add_parser("status", help="Database summary")
+
+        p = sub.add_parser("sector", help="Show sector info")
+        p.add_argument("sector", type=int)
+
+        p = sub.add_parser("ports", help="List known ports")
+        p.add_argument("-t", "--type", help="Filter by type (SSB, BBS, etc)")
+
+        sub.add_parser("pairs", help="Find adjacent trade pairs")
+
+        p = sub.add_parser("path", help="Find shortest path")
+        p.add_argument("start", type=int)
+        p.add_argument("end", type=int)
+
+        p = sub.add_parser("search", help="Search ports by type (* = wildcard)")
+        p.add_argument("pattern")
+
+        p = sub.add_parser("nearby", help="Find ports near a sector")
+        p.add_argument("sector", type=int)
+        p.add_argument("-n", "--hops", type=int, default=5)
+
+        p = sub.add_parser("nearest-pair", help="Find nearest trade pair to a sector")
+        p.add_argument("sector", type=int)
+        p.add_argument("-n", "--limit", type=int, default=5)
+
+        p = sub.add_parser("sell", help="Find where to sell current cargo")
+        p.add_argument("-n", "--hops", type=int, default=10)
+
+        sub.add_parser("chat", help="Show recent chat messages")
+
+        p = sub.add_parser("sector-art", help="View sector art for a visited sector")
+        p.add_argument("sector", type=int)
+
+        sub.add_parser("safe-harbor", help="Show nearest safe sector and route")
+
+        profile_parser = sub.add_parser("profile", help="Manage profiles")
+        profile_sub = profile_parser.add_subparsers(dest="profile_command")
+        p = profile_sub.add_parser("create", help="Create a new profile")
+        p.add_argument("name")
+        profile_sub.add_parser("list", help="List all profiles")
+
+        return parser
+
+    def _dispatch_profile(self, args: argparse.Namespace) -> None:
+        """Handle profile subcommands."""
+        match args.profile_command:
+            case "create":
+                profile = self._create_profile.execute(args.name)
+                print(f"Created profile '{profile.name}' (db: {profile.db_path})")
+            case "list":
+                listing = self._list_profiles.execute()
+                for p in listing.profiles:
+                    marker = "  * " if p.name == listing.default_name else "    "
+                    suffix = " (default)" if p.name == listing.default_name else ""
+                    print(f"{marker}{p.name}{suffix}")
+            case _:
+                print("Usage: tw profile {create|list}", file=sys.stderr)
+                sys.exit(1)
+
+    def _dispatch_game(self, args: argparse.Namespace) -> None:
+        """Dispatch game commands using the context factory."""
+        uc, close_fn = self._game_context_factory(args.profile)
+        try:
+            self._uc = uc
+            match args.command:
+                case "status":
+                    self.status()
+                case "sector":
+                    self.sector(args.sector)
+                case "ports":
+                    self.ports(args.type)
+                case "pairs":
+                    self.pairs()
+                case "path":
+                    self.path(args.start, args.end)
+                case "search":
+                    self.search(args.pattern)
+                case "nearby":
+                    self.nearby(args.sector, args.hops)
+                case "nearest-pair":
+                    self.nearest_pair(args.sector, args.limit)
+                case "sell":
+                    self.sell(args.hops)
+                case "chat":
+                    self.chat()
+                case "sector-art":
+                    self.sector_art(args.sector)
+                case "safe-harbor":
+                    self.safe_harbor()
+                case _:
+                    print(f"Unknown command: {args.command}", file=sys.stderr)
+                    sys.exit(1)
+        finally:
+            close_fn()
 
     def status(self) -> None:
         """Print database summary."""
         with _cli_boundary():
+            assert self._uc is not None
             summary = self._uc.get_database_summary.execute()
             status = self._uc.get_player_status.execute()
 
@@ -56,6 +195,7 @@ class CliAdapter:
     def sector(self, sector_id: int) -> None:
         """Print sector info."""
         with _cli_boundary():
+            assert self._uc is not None
             detail = self._uc.get_sector_info.execute(sector_id)
             if not detail:
                 print(f"  Sector {sector_id}: No data")
@@ -80,6 +220,7 @@ class CliAdapter:
     def ports(self, type_filter: str | None = None) -> None:
         """Print all known ports."""
         with _cli_boundary():
+            assert self._uc is not None
             all_ports = self._uc.list_ports.execute(type_filter)
 
             for port in all_ports:
@@ -92,6 +233,7 @@ class CliAdapter:
     def pairs(self) -> None:
         """Print trade pairs."""
         with _cli_boundary():
+            assert self._uc is not None
             results = self._uc.find_trade_pairs.execute()
             if not results:
                 print("  No trade pairs found.")
@@ -108,6 +250,7 @@ class CliAdapter:
     def path(self, start: int, end: int) -> None:
         """Print shortest path."""
         with _cli_boundary():
+            assert self._uc is not None
             try:
                 result = self._uc.find_path.execute(start, end)
                 print(f"  Path ({len(result) - 1} hops): {' > '.join(str(s) for s in result)}")
@@ -121,6 +264,7 @@ class CliAdapter:
     def search(self, pattern: str) -> None:
         """Print ports matching a type pattern."""
         with _cli_boundary():
+            assert self._uc is not None
             results = self._uc.search_ports.execute(pattern)
             if not results:
                 print(f"  No ports matching '{pattern}'")
@@ -135,6 +279,7 @@ class CliAdapter:
     def nearby(self, sector_id: int, max_hops: int) -> None:
         """Print ports near a sector."""
         with _cli_boundary():
+            assert self._uc is not None
             results = self._uc.find_nearby_ports.execute(sector_id, max_hops)
             if not results:
                 print(f"  No ports within {max_hops} hops of sector {sector_id}")
@@ -149,6 +294,7 @@ class CliAdapter:
     def sell(self, max_hops: int) -> None:
         """Print sell recommendations."""
         with _cli_boundary():
+            assert self._uc is not None
             status = self._uc.get_player_status.execute()
             if not status:
                 print("  No player status available.")
@@ -172,6 +318,7 @@ class CliAdapter:
     def chat(self) -> None:
         """Print recent chat messages."""
         with _cli_boundary():
+            assert self._uc is not None
             messages = self._uc.get_recent_chat.execute(limit=30)
             if not messages:
                 print("  No chat messages.")
@@ -183,6 +330,7 @@ class CliAdapter:
     def nearest_pair(self, sector_id: int, limit: int = 5) -> None:
         """Print nearest trade pairs to a sector."""
         with _cli_boundary():
+            assert self._uc is not None
             results = self._uc.find_nearest_pair.execute(sector_id, limit)
             if not results:
                 print(f"  No trade pairs reachable from sector {sector_id}")
@@ -202,6 +350,7 @@ class CliAdapter:
     def sector_art(self, sector_id: int) -> None:
         """Render sector art for a previously visited sector."""
         with _cli_boundary():
+            assert self._uc is not None
             grid = self._uc.render_sector_art.execute(sector_id, 80, 14)
 
             detail = self._uc.get_sector_info.execute(sector_id)
@@ -222,6 +371,7 @@ class CliAdapter:
     def safe_harbor(self) -> None:
         """Show nearest safe sector and route from current position."""
         with _cli_boundary():
+            assert self._uc is not None
             status = self._uc.get_player_status.execute()
             if status is None:
                 print("Error: No player position known. Play a session first.", file=sys.stderr)

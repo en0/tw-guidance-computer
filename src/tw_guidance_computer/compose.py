@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import final
+from typing import TYPE_CHECKING, final
 
 from tw_guidance_computer.adapters.outbound.ini_profile_store import IniProfileStore
 from tw_guidance_computer.adapters.outbound.log_reader import TailLogReader
@@ -27,6 +28,9 @@ from tw_guidance_computer.application.search_ports import SearchPorts
 from tw_guidance_computer.application.use_cases import UseCases
 from tw_guidance_computer.domain.exceptions import DatabaseNotFoundError
 from tw_guidance_computer.domain.models import TurnThresholds
+
+if TYPE_CHECKING:
+    from tw_guidance_computer.adapters.inbound.cli_commands import CliAdapter
 
 
 def _default_config_path() -> Path:
@@ -148,3 +152,33 @@ def build_profile_use_cases(
     store = IniProfileStore(config_path or _default_config_path())
     store.ensure_config_exists()
     return CreateProfile(store), ListProfiles(store)
+
+
+def build_cli(config_path: Path | None = None) -> CliAdapter:
+    """Build the CLI adapter with all dependencies.
+
+    Args:
+        config_path: Override config file location (for testing).
+
+    Returns:
+        A fully wired CliAdapter ready to run.
+    """
+    from tw_guidance_computer.adapters.inbound.cli_commands import CliAdapter as _CliAdapter
+
+    create, list_profiles = build_profile_use_cases(config_path)
+
+    def game_context_factory(
+        profile_name: str | None,
+    ) -> tuple[UseCases, Callable[[], None]]:
+        ctx = AppContext(
+            profile_name=profile_name,
+            config_path=config_path,
+            require_existing_db=True,
+        )
+        return ctx.use_cases, ctx.close
+
+    return _CliAdapter(
+        create_profile=create,
+        list_profiles=list_profiles,
+        game_context_factory=game_context_factory,
+    )
