@@ -2,19 +2,28 @@
 
 from __future__ import annotations
 
+import argparse
 import curses
 import re
 import sys
 import time
+from collections.abc import Callable
+from pathlib import Path
 from typing import TYPE_CHECKING, final
 
 from tw_guidance_computer.adapters.inbound.alert_overlay import format_alert_overlay
 from tw_guidance_computer.application.ports.log_reader import LogReader
-from tw_guidance_computer.domain.exceptions import GuidanceError
+from tw_guidance_computer.domain.exceptions import GuidanceError, ProfileExistsError
 from tw_guidance_computer.domain.models import ArtCell, PlayerStatus, SafeHarborRoute, TurnThresholds
 
 if TYPE_CHECKING:
+    from tw_guidance_computer.application.create_profile import CreateProfile
     from tw_guidance_computer.application.use_cases import UseCases
+
+HudContextFactory = Callable[
+    [str | None, Path, bool],
+    tuple["UseCases", LogReader, TurnThresholds, Callable[[], None]],
+]
 
 _ANSI_COLOR_RE = re.compile(r"\033\[38;5;(\d+)m")
 _TWO_COLUMN_HEIGHT = 12
@@ -27,20 +36,21 @@ class HudDisplay:
 
     def __init__(
         self,
-        reader: LogReader,
-        use_cases: UseCases,
-        turn_thresholds: TurnThresholds | None = None,
+        *,
+        create_profile: CreateProfile,
+        hud_context_factory: HudContextFactory,
     ) -> None:
-        """Initialize the HUD.
+        """Initialize the HUD adapter.
 
         Args:
-            reader: Log reader for new data.
-            use_cases: Pre-wired use case container.
-            turn_thresholds: Turn warning thresholds (uses defaults if None).
+            create_profile: Use case for creating profiles.
+            hud_context_factory: Factory that builds the game context from parsed args.
         """
-        self._reader = reader
-        self._uc = use_cases
-        self._thresholds = turn_thresholds or TurnThresholds()
+        self._create_profile = create_profile
+        self._hud_context_factory = hud_context_factory
+        self._reader: LogReader
+        self._uc: UseCases
+        self._thresholds: TurnThresholds = TurnThresholds()
         self._running = True
         self._pairs_mode = "best"  # "best" or "nearest"
         self._art_cache: list[list[ArtCell]] | None = None
@@ -51,12 +61,55 @@ class HudDisplay:
         self._safe_harbor_cache: SafeHarborRoute | None = None
         self._safe_harbor_sector: int | None = None
 
-    def run(self) -> None:
-        """Start the HUD display loop."""
+    def run(self, argv: list[str] | None = None) -> None:
+        """Parse arguments, build context, and start the HUD display loop.
+
+        Args:
+            argv: Command-line arguments (defaults to sys.argv[1:]).
+        """
+        args = self._build_parser().parse_args(argv)
+
+        if not args.logfile.exists():
+            print(f"Error: log file not found: {args.logfile}", file=sys.stderr)
+            sys.exit(1)
+
+        if args.create and args.profile:
+            try:
+                profile = self._create_profile.execute(args.profile)
+                print(f"Note: Created profile '{profile.name}' (db: {profile.db_path})", file=sys.stderr)
+            except ProfileExistsError:
+                pass
+
+        uc, reader, thresholds, close_fn = self._hud_context_factory(
+            args.profile, args.logfile, args.parse_existing,
+        )
+        self._uc = uc
+        self._reader = reader
+        self._thresholds = thresholds
         try:
             curses.wrapper(self._main_loop)
         except GuidanceError as e:
             print(f"Error: {e}", file=sys.stderr)
+        finally:
+            close_fn()
+
+    def _build_parser(self) -> argparse.ArgumentParser:
+        """Build the argparse parser for HUD arguments."""
+        parser = argparse.ArgumentParser(description="TW2002 Guidance Computer — real-time HUD")
+        parser.add_argument("logfile", type=Path, help="Path to the script session log file")
+        parser.add_argument(
+            "-p", "--profile", type=str, default=None,
+            help="Profile to use (default: configured default)",
+        )
+        parser.add_argument(
+            "--create", action="store_true",
+            help="Create the profile if it doesn't exist",
+        )
+        parser.add_argument(
+            "--parse-existing", action="store_true",
+            help="Parse the entire existing log before starting the HUD",
+        )
+        return parser
 
     def _main_loop(self, stdscr: curses.window) -> None:
         curses.curs_set(0)

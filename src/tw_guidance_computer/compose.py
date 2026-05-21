@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import final
 
 from tw_guidance_computer.adapters.inbound.cli_commands import CliAdapter
+from tw_guidance_computer.adapters.inbound.tui import HudDisplay
 from tw_guidance_computer.adapters.outbound.ini_profile_store import IniProfileStore
 from tw_guidance_computer.adapters.outbound.log_reader import TailLogReader
 from tw_guidance_computer.adapters.outbound.sqlite_store import SqliteGameStateStore
@@ -24,6 +25,7 @@ from tw_guidance_computer.application.get_sector_info import GetSectorInfo
 from tw_guidance_computer.application.list_ports import ListPorts
 from tw_guidance_computer.application.list_profiles import ListProfiles
 from tw_guidance_computer.application.parse_log_chunk import ParseLogChunk
+from tw_guidance_computer.application.ports.log_reader import LogReader
 from tw_guidance_computer.application.render_sector_art import RenderSectorArt
 from tw_guidance_computer.application.search_ports import SearchPorts
 from tw_guidance_computer.application.use_cases import UseCases
@@ -177,4 +179,33 @@ def build_cli(config_path: Path | None = None) -> CliAdapter:
         create_profile=create,
         list_profiles=list_profiles,
         game_context_factory=game_context_factory,
+    )
+
+
+def build_hud(config_path: Path | None = None) -> HudDisplay:
+    """Build the HUD adapter with all dependencies.
+
+    Args:
+        config_path: Override config file location (for testing).
+
+    Returns:
+        A fully wired HudDisplay ready to run.
+    """
+    create, _ = build_profile_use_cases(config_path)
+
+    def hud_context_factory(
+        profile_name: str | None,
+        log_path: Path,
+        parse_existing: bool,
+    ) -> tuple[UseCases, LogReader, TurnThresholds, Callable[[], None]]:
+        ctx = AppContext(profile_name=profile_name, config_path=config_path, log_path=log_path)
+        assert ctx.reader is not None
+        if parse_existing:
+            full_text = ctx.reader.read_full()
+            ctx.use_cases.parse_log_chunk.execute(full_text)
+        return ctx.use_cases, ctx.reader, ctx.thresholds, ctx.close
+
+    return HudDisplay(
+        create_profile=create,
+        hud_context_factory=hud_context_factory,
     )
