@@ -63,3 +63,24 @@
 - Each server gets its own database, player identity, and potentially different sharing groups
 - Separate from shared intelligence but related (sharing is per-server)
 - Needs independent scoping — captured here for future design work
+
+## CLI Config Command
+- `tw [--profile=PROFILE] config` — view/modify profile values from the CLI without editing the INI directly
+- Set values: `tw config set intel_host intel.example.com`
+- View values: `tw config show` (dump current profile's config)
+- Removes the need for users to know the INI file location or format
+- Respects `--profile` flag to target a specific profile
+
+## Multi-Instance HUD Detection
+- On startup, check if another HUD process is already running for the same profile
+- If detected: disable all sync (intel AND log file tailing), operate in read-only mode pulling from DB only
+- Display a status indicator on the HUD showing "offline" or "read-only" state
+- Prevents concurrent write conflicts on the SQLite DB and double-syncing intel
+- Detection mechanism TBD (PID file, flock, etc.)
+
+## End-User Documentation
+- Proper docs site or structured documentation beyond README
+- Installation guide, configuration reference, feature walkthroughs
+- Intel server setup guide (dedicated page with hardening tips, key management, troubleshooting)
+- Profile management guide (creating, switching, editing config)
+- HUD usage guide (keybindings, sections explained, what each display means)
