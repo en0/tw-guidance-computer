@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, final
+from typing import final
 
+from tw_guidance_computer.adapters.inbound.cli_commands import CliAdapter
 from tw_guidance_computer.adapters.outbound.ini_profile_store import IniProfileStore
 from tw_guidance_computer.adapters.outbound.log_reader import TailLogReader
 from tw_guidance_computer.adapters.outbound.sqlite_store import SqliteGameStateStore
@@ -28,9 +29,6 @@ from tw_guidance_computer.application.search_ports import SearchPorts
 from tw_guidance_computer.application.use_cases import UseCases
 from tw_guidance_computer.domain.exceptions import DatabaseNotFoundError
 from tw_guidance_computer.domain.models import TurnThresholds
-
-if TYPE_CHECKING:
-    from tw_guidance_computer.adapters.inbound.cli_commands import CliAdapter
 
 
 def _default_config_path() -> Path:
@@ -163,8 +161,6 @@ def build_cli(config_path: Path | None = None) -> CliAdapter:
     Returns:
         A fully wired CliAdapter ready to run.
     """
-    from tw_guidance_computer.adapters.inbound.cli_commands import CliAdapter as _CliAdapter
-
     create, list_profiles = build_profile_use_cases(config_path)
 
     def game_context_factory(
@@ -177,7 +173,7 @@ def build_cli(config_path: Path | None = None) -> CliAdapter:
         )
         return ctx.use_cases, ctx.close
 
-    return _CliAdapter(
+    return CliAdapter(
         create_profile=create,
         list_profiles=list_profiles,
         game_context_factory=game_context_factory,
