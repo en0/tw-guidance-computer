@@ -19,8 +19,8 @@ Ian ←→ Team Lead (single point of contact)
               │
               ├─ surfaces tradeoffs → Ian approves
               │
-              ├─ spawns Builders (parallel) → Code + Tests
-              │       └─ adversarial loop per builder (internal)
+              ├─ spawns Builder (sequential) → Code + Tests
+              │       └─ adversarial loop (internal)
               │
               └─ assigns validation (Architect → PM) → reports to Ian
 ```
@@ -55,19 +55,19 @@ Ian only interacts at approval gates and when tradeoffs need decisions.
 
 ### 3. Implementation Planning (Team Lead → Architect)
 - Team Lead spawns Architect sub-agent with approved design + UI spec + parser findings
-- Architect produces implementation plan with work units and parallel groups
+- Architect produces implementation plan with work units ordered by dependency
 - Architect validates against codespecs
 - Team Lead runs adversarial loop on the plan
 - If tradeoffs or simplifications found, Team Lead surfaces to Ian for approval
 - **Output**: Implementation Plan (`features/NNN-slug/impl-plan.md`)
 
-### 4. Build (Team Lead → Builders)
-- Team Lead spawns Builder sub-agents per parallel work group
-- Each builder produces code + tests
-- Each builder follows the implementation plan exactly
-- Team Lead runs adversarial loop per builder
+### 4. Build (Team Lead → Builder)
+- Team Lead spawns Builder sub-agent for each work unit sequentially
+- Builder creates the feature branch on first unit, commits after each unit
+- Builder follows the implementation plan exactly
+- Team Lead runs adversarial loop after all units complete
 - If a builder discovers a conflict with another work unit, escalate to Architect
-- **Output**: Code + tests per work unit
+- **Output**: Code + tests on feature branch
 
 ### 5. Validation (Team Lead → Architect → PM → Ian)
 - Team Lead spawns Architect sub-agent: validate all code against plan and codespecs
@@ -105,8 +105,9 @@ Any agent that discovers something about the data stream, game mechanics, or arc
 
 ## Git Branching
 
-- Team Lead creates a feature branch at the start of Phase 4 (Build): `feature/NNN-slug`
-- All builder work happens on this branch
+- Builder creates the feature branch at the start of Phase 4 (Build): `feature/NNN-slug`
+- Builder creates refactor branches: `refactor/<description>`
+- All builder work happens on the branch, committed after each work unit
 - Agents NEVER merge to main, tag, or release
 - Ian merges, tags, and releases when satisfied after final validation
 - Design artifacts (`.kiro/` changes from Phases 1-3) may be committed to main directly — they're documentation, not code
