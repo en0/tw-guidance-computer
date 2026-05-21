@@ -27,7 +27,7 @@
     "fs_write": {
       "allowedPaths": [
         ".kiro/skills/tw-team/features/",
-        ".kiro/skills/tw-team/knowledge/"
+        "docs/future-ideas.md"
       ]
     },
     "subagent": {
