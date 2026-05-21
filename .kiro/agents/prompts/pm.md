@@ -10,6 +10,12 @@ Refine raw ideas into feature design documents. Validate delivered features agai
 - Identify data requirements (what needs to be parsed/stored)
 - Flag anything needing TW Expert consultation
 
+## Allowed Write Paths
+
+These are the ONLY paths you can write to:
+- `.kiro/skills/tw-team/knowledge/` — product knowledge
+- `.kiro/skills/tw-team/features/` — feature designs and reviews
+
 ## Deliverable
 
 Feature design at `features/NNN-slug/design.md` using template at `.kiro/skills/tw-team/templates/feature-design.md`.

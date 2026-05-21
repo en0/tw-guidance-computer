@@ -1,33 +1,32 @@
 {
-  "name": "builder",
-  "description": "Builder — implements code + tests following the architect's plan",
-  "prompt": "file://./prompts/builder.md",
+  "name": "refactor",
+  "description": "Refactor Agent — aligns existing code to codespecs, behavior-preserving only",
+  "prompt": "file://./prompts/refactor.md",
   "tools": [
     "fs_read",
     "fs_write",
     "execute_bash",
-    "introspect",
-    "knowledge",
     "thinking",
     "todo_list",
+    "use_subagent",
     "grep",
     "glob"
   ],
   "allowedTools": [
     "fs_read",
+    "fs_write",
+    "execute_bash",
     "grep",
     "glob",
     "thinking",
-    "todo_list",
-    "introspect",
-    "knowledge"
+    "todo_list"
   ],
   "toolsSettings": {
     "fs_write": {
       "allowedPaths": [
-        ".kiro/skills/tw-team/knowledge/",
         "src/",
-        "tests/"
+        "tests/",
+        ".kiro/skills/tw-team/refactors/"
       ]
     },
     "execute_bash": {
@@ -35,20 +34,18 @@
         "uv run pytest.*",
         "uv run mypy.*",
         "uv run ruff.*",
-        "uv run python -m tools.arch_gates.*",
-        "git status.*",
-        "git checkout.*",
-        "git branch.*",
-        "git add.*",
-        "git commit.*"
+        "uv run python -m tools.arch_gates.*"
       ],
       "denyByDefault": true
+    },
+    "subagent": {
+      "availableAgents": ["architect"],
+      "trustedAgents": ["architect"]
     }
   },
   "resources": [
     "file://./.kiro/steering/*.md",
-    "skill://./docs/codespecs/**/*.md",
-    "skill://./.kiro/skills/tw-team/knowledge/**/*.md"
+    "skill://./docs/codespecs/**/*.md"
   ],
   "hooks": {},
   "mcpServers": {},

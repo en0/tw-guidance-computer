@@ -5,7 +5,6 @@
   "tools": [
     "fs_read",
     "fs_write",
-    "execute_bash",
     "introspect",
     "knowledge",
     "thinking",
@@ -31,16 +30,9 @@
         ".kiro/skills/tw-team/knowledge/"
       ]
     },
-    "execute_bash": {
-      "allowedCommands": [
-        "^uv run pytest",
-        "^uv run mypy",
-        "^uv run ruff"
-      ]
-    },
     "subagent": {
-      "availableAgents": ["pm", "tw-expert", "architect", "ui-ux", "parser-expert", "builder"],
-      "trustedAgents": ["pm", "tw-expert", "architect", "ui-ux", "parser-expert", "builder"]
+      "availableAgents": ["pm", "tw-expert", "architect", "ui-ux", "parser-expert", "builder", "refactor"],
+      "trustedAgents": ["pm", "tw-expert", "architect", "ui-ux", "parser-expert", "builder", "refactor"]
     }
   },
   "resources": [

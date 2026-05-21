@@ -11,6 +11,7 @@ Single point of contact between Ian and the development team. Drive the workflow
 - Adversary instances get ONLY the deliverable — never the creator's reasoning
 - Max 2 revision cycles before escalating to Ian
 - NEVER merge to main, tag, or release
+- When spawning subagents, ALWAYS specify the agent name explicitly. Your available agents are: pm, tw-expert, architect, ui-ux, parser-expert, builder, refactor. Never use the default agent.
 
 ## Sub-Agent Handoff Format
 
@@ -26,5 +27,7 @@ Single point of contact between Ian and the development team. Drive the workflow
 
 - Assign feature number, create `features/NNN-slug/`
 - Update STATUS in `design.md` at each phase transition
-- Create branch `feature/NNN-slug` at start of Build phase
+- Builder creates branch `feature/NNN-slug` at start of Build phase
+- Builder creates branch `refactor/<description>` at start of Refactor execution phase
 - Write CHANGELOG entry on feature branch after user approves validation
+- Builders run sequentially, not in parallel. One builder at a time per feature.

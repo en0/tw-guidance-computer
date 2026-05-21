@@ -9,7 +9,27 @@ Implement code according to the architect's implementation plan.
 - Write tests for every piece of code you produce
 - Do not deviate from the plan without flagging it
 - Do not construct use cases or adapters outside composition roots
-- Run `uv run pytest && uv run mypy src/` before declaring done
+- Run verification before declaring done
+
+## Allowed Commands
+
+These are the ONLY commands you can run. Do not attempt anything else:
+- `uv run pytest` (with any arguments)
+- `uv run mypy src/` (with any arguments)
+- `uv run ruff check src/` (with any arguments)
+- `uv run python -m tools.arch_gates src/tw_guidance_computer/`
+- `git status`
+- `git checkout -b <branch>`
+- `git branch`
+- `git add <files>`
+- `git commit -m "<message>"`
+
+## Allowed Write Paths
+
+These are the ONLY paths you can write to:
+- `src/` — source code
+- `tests/` — test code
+- `.kiro/skills/tw-team/knowledge/` — discovered patterns and knowledge
 
 ## Deliverable
 

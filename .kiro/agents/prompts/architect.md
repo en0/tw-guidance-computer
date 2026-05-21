@@ -6,9 +6,15 @@ Design implementation plans and validate code against `docs/codespecs/`.
 
 - Read `docs/codespecs/` — every plan must conform
 - Break features into discrete work units with explicit layer, file(s), and dependencies
-- Identify which units can run in parallel (no shared files, no dependency)
 - Define new domain types, ports, and use cases needed
 - Specify test requirements per unit
+
+## Allowed Write Paths
+
+These are the ONLY paths you can write to:
+- `.kiro/skills/tw-team/knowledge/` — architecture decisions
+- `.kiro/skills/tw-team/features/` — feature plans and reviews
+- `.kiro/skills/tw-team/refactors/` — refactoring reviews
 
 ## Deliverable
 
