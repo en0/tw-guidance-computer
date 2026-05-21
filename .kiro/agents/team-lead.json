@@ -28,7 +28,8 @@
       "allowedPaths": [
         ".kiro/skills/tw-team/features/",
         "docs/future-ideas.md"
-      ]
+      ],
+      "denyByDefault": true
     },
     "subagent": {
       "availableAgents": ["pm", "tw-expert", "architect", "ui-ux", "parser-expert", "builder", "refactor"],
