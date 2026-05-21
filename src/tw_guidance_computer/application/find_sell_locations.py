@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from collections import defaultdict, deque
+from collections import deque
 from typing import final
 
 from tw_guidance_computer.application.ports.game_state_store import GameStateStore
 from tw_guidance_computer.domain.models import CommodityType, Port, SellRecommendation, TradeDirection
+from tw_guidance_computer.domain.warp_graph import WarpGraph
 
 
 @final
@@ -35,15 +36,10 @@ class FindSellLocations:
         if not carrying:
             return []
 
-        warps = self._store.get_all_warps()
-        adj: dict[int, set[int]] = defaultdict(set)
-        for w in warps:
-            adj[w.from_sector].add(w.to_sector)
-            adj[w.to_sector].add(w.from_sector)
-
+        graph = WarpGraph(self._store.get_all_warps())
         ports = {p.sector_id: p for p in self._store.get_all_ports()}
 
-        # BFS from current sector
+        # BFS from current sector, checking ports as we go
         queue: deque[tuple[int, int]] = deque([(from_sector, 0)])
         visited = {from_sector}
         results: list[SellRecommendation] = []
@@ -66,7 +62,7 @@ class FindSellLocations:
                         )
                     )
 
-            for neighbor in adj[current]:
+            for neighbor in graph.neighbors(current):
                 if neighbor not in visited:
                     visited.add(neighbor)
                     queue.append((neighbor, dist + 1))
@@ -78,14 +74,12 @@ def _port_buys(port: Port, carrying: list[CommodityType]) -> list[CommodityType]
     """Determine which carried commodities this port will buy."""
     buying: set[CommodityType] = set()
 
-    # Check from port_type code
     commodity_order = [CommodityType.FUEL_ORE, CommodityType.ORGANICS, CommodityType.EQUIPMENT]
     if len(port.port_type) == 3:
         for i, c in enumerate(commodity_order):
             if port.port_type[i] == "B":
                 buying.add(c)
 
-    # Also check detailed commodities if available
     for pc in port.commodities:
         if pc.direction == TradeDirection.BUYING:
             buying.add(pc.commodity)

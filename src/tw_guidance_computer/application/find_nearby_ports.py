@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from collections import defaultdict, deque
 from typing import final
 
 from tw_guidance_computer.application.ports.game_state_store import GameStateStore
 from tw_guidance_computer.domain.models import NearbyPort
+from tw_guidance_computer.domain.warp_graph import WarpGraph
 
 
 @final
@@ -31,29 +31,14 @@ class FindNearbyPorts:
         Returns:
             List of NearbyPort sorted by distance.
         """
-        warps = self._store.get_all_warps()
-        adj: dict[int, set[int]] = defaultdict(set)
-        for w in warps:
-            adj[w.from_sector].add(w.to_sector)
-            adj[w.to_sector].add(w.from_sector)
-
-        queue: deque[tuple[int, int]] = deque([(sector_id, 0)])
-        visited = {sector_id: 0}
-        while queue:
-            current, dist = queue.popleft()
-            if dist >= max_hops:
-                continue
-            for neighbor in adj[current]:
-                if neighbor not in visited:
-                    visited[neighbor] = dist + 1
-                    queue.append((neighbor, dist + 1))
+        graph = WarpGraph(self._store.get_all_warps())
+        distances = graph.bfs_distances(sector_id, max_hops=max_hops)
 
         results: list[NearbyPort] = []
-        for sid, hops in visited.items():
-            if hops > 0:
-                port = self._store.get_port(sid)
-                if port:
-                    results.append(NearbyPort(hops=hops, port=port))
+        for sid, hops in distances.items():
+            port = self._store.get_port(sid)
+            if port:
+                results.append(NearbyPort(hops=hops, port=port))
 
         results.sort(key=lambda x: x.hops)
         return results

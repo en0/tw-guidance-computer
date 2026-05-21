@@ -6,6 +6,7 @@ from typing import final
 
 from tw_guidance_computer.application.ports.game_state_store import GameStateStore
 from tw_guidance_computer.domain.models import CommodityType, TradePair
+from tw_guidance_computer.domain.warp_graph import WarpGraph
 
 
 @final
@@ -30,24 +31,17 @@ class FindTradePairs:
             Trade pairs sorted by complementary count descending.
         """
         ports = {p.sector_id: p for p in self._store.get_all_ports()}
-        warps = self._store.get_all_warps()
-
-        # Build adjacency
-        adjacency: dict[int, set[int]] = {}
-        for w in warps:
-            adjacency.setdefault(w.from_sector, set()).add(w.to_sector)
+        graph = WarpGraph(self._store.get_all_warps())
 
         pairs: list[TradePair] = []
         seen: set[tuple[int, int]] = set()
 
-        for sector_a, neighbors in adjacency.items():
-            if sector_a not in ports:
-                continue
+        for sector_a in ports:
             port_a = ports[sector_a]
             if len(port_a.port_type) != 3 or port_a.port_type == "Special":
                 continue
 
-            for sector_b in neighbors:
+            for sector_b in graph.neighbors(sector_a):
                 if sector_b not in ports:
                     continue
                 key = (min(sector_a, sector_b), max(sector_a, sector_b))

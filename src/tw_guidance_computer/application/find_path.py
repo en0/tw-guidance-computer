@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from collections import defaultdict, deque
 from typing import final
 
 from tw_guidance_computer.application.ports.game_state_store import GameStateStore
 from tw_guidance_computer.domain.exceptions import PathNotFoundError
+from tw_guidance_computer.domain.warp_graph import WarpGraph
 
 
 @final
@@ -34,25 +34,8 @@ class FindPath:
         Raises:
             PathNotFoundError: If no path exists in the known warp graph.
         """
-        if start == end:
-            return [start]
-
-        warps = self._store.get_all_warps()
-        adj: dict[int, set[int]] = defaultdict(set)
-        for w in warps:
-            adj[w.from_sector].add(w.to_sector)
-            adj[w.to_sector].add(w.from_sector)
-
-        queue: deque[tuple[int, list[int]]] = deque([(start, [start])])
-        visited = {start}
-
-        while queue:
-            current, path = queue.popleft()
-            for neighbor in adj[current]:
-                if neighbor == end:
-                    return path + [neighbor]
-                if neighbor not in visited:
-                    visited.add(neighbor)
-                    queue.append((neighbor, path + [neighbor]))
-
-        raise PathNotFoundError(f"No known path from {start} to {end}")
+        graph = WarpGraph(self._store.get_all_warps())
+        path = graph.bfs_path(start, end)
+        if path is None:
+            raise PathNotFoundError(f"No known path from {start} to {end}")
+        return path

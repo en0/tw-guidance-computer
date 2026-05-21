@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from collections import defaultdict, deque
 from typing import final
 
 from tw_guidance_computer.application.ports.game_state_store import GameStateStore
 from tw_guidance_computer.domain.models import SafeHarborRoute
+from tw_guidance_computer.domain.warp_graph import WarpGraph
 
 
 @final
@@ -41,30 +41,17 @@ class FindSafeHarbor:
                 route=[from_sector],
             )
 
-        warps = self._store.get_all_warps()
-        adj: dict[int, set[int]] = defaultdict(set)
-        for w in warps:
-            adj[w.from_sector].add(w.to_sector)
-            adj[w.to_sector].add(w.from_sector)
+        graph = WarpGraph(self._store.get_all_warps())
+        result = graph.bfs_first_match(from_sector, safe_ids)
+        if result is None:
+            return None
 
-        queue: deque[tuple[int, list[int]]] = deque([(from_sector, [from_sector])])
-        visited = {from_sector}
-
-        while queue:
-            current, path = queue.popleft()
-            for neighbor in adj[current]:
-                if neighbor in safe_ids:
-                    route = path + [neighbor]
-                    return SafeHarborRoute(
-                        destination_sector=neighbor,
-                        destination_name=self._build_name(neighbor),
-                        route=route,
-                    )
-                if neighbor not in visited:
-                    visited.add(neighbor)
-                    queue.append((neighbor, path + [neighbor]))
-
-        return None
+        destination, route = result
+        return SafeHarborRoute(
+            destination_sector=destination,
+            destination_name=self._build_name(destination),
+            route=route,
+        )
 
     def _build_name(self, sector_id: int) -> str:
         """Build a human-readable name for a safe sector.
