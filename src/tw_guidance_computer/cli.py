@@ -6,20 +6,13 @@ import argparse
 import sys
 
 from tw_guidance_computer.adapters.inbound.cli_commands import CliAdapter
-from tw_guidance_computer.compose import AppContext, resolve_db_path
-from tw_guidance_computer.domain.exceptions import (
-    ConfigError,
-    GuidanceError,
-    ProfileNotFoundError,
-    ValidationError,
-)
+from tw_guidance_computer.compose import AppContext, build_profile_use_cases
+from tw_guidance_computer.domain.exceptions import GuidanceError
 
 
 def _handle_profile_command(args: argparse.Namespace) -> None:
     """Handle profile subcommands."""
-    from tw_guidance_computer.compose import build_profile_use_cases
-
-    _, create_uc, list_uc = build_profile_use_cases()
+    create_uc, list_uc = build_profile_use_cases()
 
     match args.profile_command:
         case "create":
@@ -100,16 +93,11 @@ def main() -> None:
         return
 
     try:
-        db_path = resolve_db_path(args.profile)
-    except (ConfigError, ProfileNotFoundError, ValidationError) as e:
+        ctx = AppContext(profile_name=args.profile, require_existing_db=True)
+    except GuidanceError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
-    if not db_path.exists():
-        print(f"No database found at {db_path}. Run tw-hud first to populate it.", file=sys.stderr)
-        sys.exit(1)
-
-    ctx = AppContext(db_path=db_path)
     cli = CliAdapter(ctx.use_cases)
 
     try:

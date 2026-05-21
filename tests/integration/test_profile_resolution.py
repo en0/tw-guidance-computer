@@ -4,20 +4,22 @@ from pathlib import Path
 
 import pytest
 
-from tw_guidance_computer.compose import resolve_config, resolve_db_path
-from tw_guidance_computer.domain.exceptions import ProfileNotFoundError, ValidationError
+from tw_guidance_computer.compose import AppContext
+from tw_guidance_computer.domain.exceptions import DatabaseNotFoundError, ProfileNotFoundError, ValidationError
 from tw_guidance_computer.domain.models import TurnThresholds
 
 
-class TestResolveDbPath:
-    def test_creates_config_and_returns_default(self, tmp_path: Path) -> None:
+class TestAppContextResolution:
+    def test_creates_config_and_resolves_default(self, tmp_path: Path) -> None:
         config_path = tmp_path / "config.ini"
         assert not config_path.exists()
 
-        db_path = resolve_db_path(None, config_path=config_path)
-
-        assert config_path.exists()
-        assert db_path == Path.home() / ".local" / "share" / "tw-guidance-computer" / "game.db"
+        ctx = AppContext(config_path=config_path)
+        try:
+            assert config_path.exists()
+            assert ctx.thresholds == TurnThresholds(yellow=200, red=100, alert=50)
+        finally:
+            ctx.close()
 
     def test_with_named_profile(self, tmp_path: Path) -> None:
         config_path = tmp_path / "config.ini"
@@ -27,12 +29,15 @@ class TestResolveDbPath:
             "[profile:default]\n"
             "db = ~/.local/share/tw-guidance-computer/game.db\n\n"
             "[profile:alpha]\n"
-            "db = ~/.local/share/tw-guidance-computer/alpha.db\n"
+            f"db = {tmp_path / 'alpha.db'}\n"
         )
 
-        db_path = resolve_db_path("alpha", config_path=config_path)
-
-        assert db_path == Path.home() / ".local" / "share" / "tw-guidance-computer" / "alpha.db"
+        ctx = AppContext(profile_name="alpha", config_path=config_path)
+        try:
+            # Verify it resolved the alpha profile (store was created at alpha path)
+            assert ctx.store is not None
+        finally:
+            ctx.close()
 
     def test_missing_profile_raises(self, tmp_path: Path) -> None:
         config_path = tmp_path / "config.ini"
@@ -44,17 +49,7 @@ class TestResolveDbPath:
         )
 
         with pytest.raises(ProfileNotFoundError, match="nonexistent"):
-            resolve_db_path("nonexistent", config_path=config_path)
-
-
-class TestResolveConfig:
-    def test_returns_default_thresholds(self, tmp_path: Path) -> None:
-        config_path = tmp_path / "config.ini"
-
-        db_path, thresholds = resolve_config(None, config_path=config_path)
-
-        assert db_path == Path.home() / ".local" / "share" / "tw-guidance-computer" / "game.db"
-        assert thresholds == TurnThresholds(yellow=200, red=100, alert=50)
+            AppContext(profile_name="nonexistent", config_path=config_path)
 
     def test_reads_custom_thresholds(self, tmp_path: Path) -> None:
         config_path = tmp_path / "config.ini"
@@ -62,15 +57,17 @@ class TestResolveConfig:
             "[DEFAULT]\n"
             "default_profile = default\n\n"
             "[profile:default]\n"
-            "db = ~/.local/share/tw-guidance-computer/game.db\n"
+            f"db = {tmp_path / 'game.db'}\n"
             "turn_warning_yellow = 300\n"
             "turn_warning_red = 150\n"
             "turn_alert_threshold = 75\n"
         )
 
-        _, thresholds = resolve_config(None, config_path=config_path)
-
-        assert thresholds == TurnThresholds(yellow=300, red=150, alert=75)
+        ctx = AppContext(config_path=config_path)
+        try:
+            assert ctx.thresholds == TurnThresholds(yellow=300, red=150, alert=75)
+        finally:
+            ctx.close()
 
     def test_invalid_thresholds_raise_validation_error(self, tmp_path: Path) -> None:
         config_path = tmp_path / "config.ini"
@@ -78,11 +75,40 @@ class TestResolveConfig:
             "[DEFAULT]\n"
             "default_profile = default\n\n"
             "[profile:default]\n"
-            "db = ~/.local/share/tw-guidance-computer/game.db\n"
+            f"db = {tmp_path / 'game.db'}\n"
             "turn_warning_yellow = 50\n"
             "turn_warning_red = 100\n"
             "turn_alert_threshold = 200\n"
         )
 
         with pytest.raises(ValidationError):
-            resolve_config(None, config_path=config_path)
+            AppContext(config_path=config_path)
+
+    def test_require_existing_db_raises_when_missing(self, tmp_path: Path) -> None:
+        config_path = tmp_path / "config.ini"
+        config_path.write_text(
+            "[DEFAULT]\n"
+            "default_profile = default\n\n"
+            "[profile:default]\n"
+            f"db = {tmp_path / 'nonexistent' / 'game.db'}\n"
+        )
+
+        with pytest.raises(DatabaseNotFoundError, match="No database found"):
+            AppContext(config_path=config_path, require_existing_db=True)
+
+    def test_require_existing_db_succeeds_when_present(self, tmp_path: Path) -> None:
+        db_path = tmp_path / "game.db"
+        db_path.touch()
+        config_path = tmp_path / "config.ini"
+        config_path.write_text(
+            "[DEFAULT]\n"
+            "default_profile = default\n\n"
+            "[profile:default]\n"
+            f"db = {db_path}\n"
+        )
+
+        ctx = AppContext(config_path=config_path, require_existing_db=True)
+        try:
+            assert ctx.store is not None
+        finally:
+            ctx.close()

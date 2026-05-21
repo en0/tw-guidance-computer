@@ -7,14 +7,8 @@ import sys
 from pathlib import Path
 
 from tw_guidance_computer.adapters.inbound.tui import HudDisplay
-from tw_guidance_computer.compose import AppContext, build_profile_use_cases, resolve_config
-from tw_guidance_computer.domain.exceptions import (
-    ConfigError,
-    GuidanceError,
-    ProfileExistsError,
-    ProfileNotFoundError,
-    ValidationError,
-)
+from tw_guidance_computer.compose import AppContext, build_profile_use_cases
+from tw_guidance_computer.domain.exceptions import GuidanceError, ProfileExistsError
 
 
 def main() -> None:
@@ -40,32 +34,31 @@ def main() -> None:
         print(f"Error: log file not found: {args.logfile}", file=sys.stderr)
         sys.exit(1)
 
+    # Pre-flight: create profile if requested (before main app construction)
     if args.create and args.profile:
-        _, create_profile, _ = build_profile_use_cases()
+        create_profile, _ = build_profile_use_cases()
         try:
             profile = create_profile.execute(args.profile)
             print(f"Note: Created profile '{profile.name}' (db: {profile.db_path})", file=sys.stderr)
         except ProfileExistsError:
-            pass  # Already exists, continue normally
+            pass
         except GuidanceError as e:
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
 
     try:
-        db_path, thresholds = resolve_config(args.profile)
-    except (ConfigError, ProfileNotFoundError, ValidationError) as e:
+        ctx = AppContext(profile_name=args.profile, log_path=args.logfile)
+    except GuidanceError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
-    ctx = AppContext(db_path=db_path, log_path=args.logfile)
     assert ctx.reader is not None
 
-    # Optionally parse existing log content first
     if args.parse_existing:
         full_text = ctx.reader.read_full()
         ctx.use_cases.parse_log_chunk.execute(full_text)
 
-    hud = HudDisplay(reader=ctx.reader, use_cases=ctx.use_cases, turn_thresholds=thresholds)
+    hud = HudDisplay(reader=ctx.reader, use_cases=ctx.use_cases, turn_thresholds=ctx.thresholds)
 
     try:
         hud.run()

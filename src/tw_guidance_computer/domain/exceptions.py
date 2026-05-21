@@ -25,6 +25,10 @@ class StorageError(GuidanceError):
     """Raised when persistent storage is unavailable or fails."""
 
 
+class DatabaseNotFoundError(GuidanceError):
+    """Raised when the database file does not exist and is required."""
+
+
 class LogReadError(GuidanceError):
     """Raised when reading the session log fails."""
 
