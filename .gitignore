@@ -8,3 +8,4 @@ build/
 .mypy_cache/
 *.db
 .secret-patterns
+.kiro/skills/tw-team/refactors/
