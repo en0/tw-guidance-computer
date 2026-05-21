@@ -6,7 +6,7 @@ from collections import deque
 from typing import final
 
 from tw_guidance_computer.application.ports.game_state_store import GameStateStore
-from tw_guidance_computer.domain.models import CommodityType, Port, SellRecommendation, TradeDirection
+from tw_guidance_computer.domain.models import CommodityType, SellRecommendation
 from tw_guidance_computer.domain.warp_graph import WarpGraph
 
 
@@ -39,7 +39,6 @@ class FindSellLocations:
         graph = WarpGraph(self._store.get_all_warps())
         ports = {p.sector_id: p for p in self._store.get_all_ports()}
 
-        # BFS from current sector, checking ports as we go
         queue: deque[tuple[int, int]] = deque([(from_sector, 0)])
         visited = {from_sector}
         results: list[SellRecommendation] = []
@@ -51,7 +50,7 @@ class FindSellLocations:
 
             if current in ports and dist > 0:
                 port = ports[current]
-                accepted = _port_buys(port, carrying)
+                accepted = [c for c in carrying if c in port.buying_commodities]
                 if accepted:
                     results.append(
                         SellRecommendation(
@@ -68,20 +67,3 @@ class FindSellLocations:
                     queue.append((neighbor, dist + 1))
 
         return results
-
-
-def _port_buys(port: Port, carrying: list[CommodityType]) -> list[CommodityType]:
-    """Determine which carried commodities this port will buy."""
-    buying: set[CommodityType] = set()
-
-    commodity_order = [CommodityType.FUEL_ORE, CommodityType.ORGANICS, CommodityType.EQUIPMENT]
-    if len(port.port_type) == 3:
-        for i, c in enumerate(commodity_order):
-            if port.port_type[i] == "B":
-                buying.add(c)
-
-    for pc in port.commodities:
-        if pc.direction == TradeDirection.BUYING:
-            buying.add(pc.commodity)
-
-    return [c for c in carrying if c in buying]

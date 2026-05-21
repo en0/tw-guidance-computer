@@ -9,6 +9,22 @@ from tw_guidance_computer.domain.models.types import CommodityType
 
 
 @dataclass(frozen=True)
+class TradeRoute:
+    """A single complementary trade between two ports."""
+
+    commodity: CommodityType
+    buy_sector: int
+    sell_sector: int
+
+    def __post_init__(self) -> None:
+        """Validate trade route fields."""
+        if self.buy_sector < 1:
+            raise ValidationError("buy_sector must be positive")
+        if self.sell_sector < 1:
+            raise ValidationError("sell_sector must be positive")
+
+
+@dataclass(frozen=True)
 class TradePair:
     """Two adjacent ports with complementary buy/sell patterns."""
 
@@ -19,7 +35,7 @@ class TradePair:
     port_a_type: str
     port_b_type: str
     complementary_count: int
-    routes: list[str] = field(default_factory=list)
+    routes: list[TradeRoute] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         """Validate trade pair fields."""

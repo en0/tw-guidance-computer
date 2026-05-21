@@ -103,7 +103,7 @@ class CliAdapter:
                 print(f"\n{header}")
                 print(f"  Complementary: {p.complementary_count}/3")
                 for r in p.routes:
-                    print(f"    {r}")
+                    print(f"    buy {r.commodity.value} at [{r.buy_sector}], sell at [{r.sell_sector}]")
 
     def path(self, start: int, end: int) -> None:
         """Print shortest path."""
@@ -197,7 +197,7 @@ class CliAdapter:
                 )
                 print(f"\n    {nearest.hops} hops - {line}")
                 for r in p.routes:
-                    print(f"      {r}")
+                    print(f"      buy {r.commodity.value} at [{r.buy_sector}], sell at [{r.sell_sector}]")
 
     def sector_art(self, sector_id: int) -> None:
         """Render sector art for a previously visited sector."""

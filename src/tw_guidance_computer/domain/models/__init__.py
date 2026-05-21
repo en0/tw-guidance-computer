@@ -10,7 +10,7 @@ from tw_guidance_computer.domain.models.profile import Profile, ProfileListing
 from tw_guidance_computer.domain.models.safe_harbor import SafeHarborRoute, TurnThresholds
 from tw_guidance_computer.domain.models.sector import Sector, WarpConnection
 from tw_guidance_computer.domain.models.summary import DatabaseSummary, SectorDetail
-from tw_guidance_computer.domain.models.trade import NearestPair, SellRecommendation, TradePair
+from tw_guidance_computer.domain.models.trade import NearestPair, SellRecommendation, TradePair, TradeRoute
 from tw_guidance_computer.domain.models.types import CommodityType, TradeDirection
 
 __all__ = [
@@ -33,6 +33,7 @@ __all__ = [
     "SellRecommendation",
     "TradeDirection",
     "TradePair",
+    "TradeRoute",
     "TurnThresholds",
     "WarpConnection",
 ]

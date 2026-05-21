@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import final
 
 from tw_guidance_computer.application.ports.game_state_store import GameStateStore
-from tw_guidance_computer.domain.models import CommodityType, TradePair
+from tw_guidance_computer.domain.models import TradePair, TradeRoute
 from tw_guidance_computer.domain.warp_graph import WarpGraph
 
 
@@ -53,21 +53,12 @@ class FindTradePairs:
                 if len(port_b.port_type) != 3 or port_b.port_type == "Special":
                     continue
 
-                commodities = [CommodityType.FUEL_ORE, CommodityType.ORGANICS, CommodityType.EQUIPMENT]
-                complements = 0
-                routes: list[str] = []
-
-                for i, c in enumerate(commodities):
-                    a_dir = port_a.port_type[i]
-                    b_dir = port_b.port_type[i]
-                    if a_dir == "S" and b_dir == "B":
-                        complements += 1
-                        routes.append(f"buy {c.value} at [{sector_a}], sell at [{sector_b}]")
-                    elif a_dir == "B" and b_dir == "S":
-                        complements += 1
-                        routes.append(f"buy {c.value} at [{sector_b}], sell at [{sector_a}]")
-
-                if complements >= min_complementary:
+                trades = port_a.complementary_trades(port_b)
+                if len(trades) >= min_complementary:
+                    routes = [
+                        TradeRoute(commodity=c, buy_sector=buy, sell_sector=sell)
+                        for c, buy, sell in trades
+                    ]
                     pairs.append(
                         TradePair(
                             sector_a=sector_a,
@@ -76,7 +67,7 @@ class FindTradePairs:
                             port_b_name=port_b.name,
                             port_a_type=port_a.port_type,
                             port_b_type=port_b.port_type,
-                            complementary_count=complements,
+                            complementary_count=len(trades),
                             routes=routes,
                         )
                     )
