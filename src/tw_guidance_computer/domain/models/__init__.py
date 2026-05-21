@@ -1,7 +1,7 @@
 """Domain models — re-exports all public types."""
 
 from tw_guidance_computer.domain.models.art import ArtCell
-from tw_guidance_computer.domain.models.cargo import CargoHold
+from tw_guidance_computer.domain.models.cargo import CargoHold, CargoManifest
 from tw_guidance_computer.domain.models.chat import ChatMessage
 from tw_guidance_computer.domain.models.planet import Planet
 from tw_guidance_computer.domain.models.player import PlayerStatus
@@ -16,6 +16,7 @@ from tw_guidance_computer.domain.models.types import CommodityType, TradeDirecti
 __all__ = [
     "ArtCell",
     "CargoHold",
+    "CargoManifest",
     "ChatMessage",
     "CommodityType",
     "DatabaseSummary",

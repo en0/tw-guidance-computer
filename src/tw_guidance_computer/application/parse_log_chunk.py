@@ -9,6 +9,7 @@ from typing import final
 from tw_guidance_computer.application.ports.game_state_store import GameStateStore
 from tw_guidance_computer.domain.models import (
     CargoHold,
+    CargoManifest,
     ChatMessage,
     CommodityType,
     Planet,
@@ -30,7 +31,7 @@ class _SyncPoint:
     holds_total: int
     holds_empty: int
     credits: int
-    cargo: list[CargoHold] = field(default_factory=list)
+    cargo: CargoManifest = field(default_factory=CargoManifest)
 
 
 @final
@@ -51,7 +52,7 @@ class ParseLogChunk:
         self._current_sector: int | None = None
         self._turns_remaining: int | None = None
         self._credits: int | None = None
-        self._cargo: list[CargoHold] = []
+        self._cargo: CargoManifest = CargoManifest()
         self._holds_total: int = 0
         self._holds_empty: int = 0
 
@@ -244,7 +245,6 @@ class ParseLogChunk:
         )
         for m in info_re.finditer(text):
             holds_desc = m.group(4)
-            cargo = _parse_holds_description(holds_desc)
             empty_m = re.search(r"Empty=(\d+)", holds_desc)
             syncs.append((m.end(), _SyncPoint(
                 sector=int(m.group(1)),
@@ -252,7 +252,7 @@ class ParseLogChunk:
                 holds_total=int(m.group(3)),
                 holds_empty=int(empty_m.group(1)) if empty_m else 0,
                 credits=int(m.group(5).replace(",", "")),
-                cargo=cargo,
+                cargo=CargoManifest(holdings=_parse_holds_description(holds_desc)),
             )))
 
         # Compact status bar
@@ -287,7 +287,7 @@ class ParseLogChunk:
                 holds_total=holds_total,
                 holds_empty=holds_total - (ore + org + equ + col),
                 credits=int(m.group(3).replace(",", "")),
-                cargo=bar_cargo,
+                cargo=CargoManifest(holdings=bar_cargo),
             )))
 
         # Apply in document order — last one wins
@@ -364,9 +364,9 @@ class ParseLogChunk:
 
             if direction == "buy":
                 cost_per_unit = price / quantity if price > 0 else 0.0
-                self._cargo = _merge_cargo(self._cargo, commodity, quantity, cost_per_unit)
+                self._cargo = self._cargo.add(commodity, quantity, cost_per_unit)
             else:
-                self._cargo = _remove_cargo(self._cargo, commodity, quantity)
+                self._cargo = self._cargo.remove(commodity, quantity)
 
     def _extract_chat(self, text: str) -> None:
         # Sub-space radio messages
@@ -404,7 +404,7 @@ class ParseLogChunk:
                     sector_id=self._current_sector,
                     turns_remaining=self._turns_remaining or 0,
                     credits=self._credits or 0,
-                    cargo=self._cargo,
+                    cargo=self._cargo.holdings,
                     holds_total=self._holds_total,
                     holds_empty=self._holds_empty,
                 )
@@ -457,39 +457,3 @@ def _extract_final_price(text_after_agreed: str, direction: str) -> float:
     if prices:
         return float(prices[-1].group(1).replace(",", ""))
     return 0.0
-
-
-def _merge_cargo(
-    cargo: list[CargoHold], commodity: CommodityType, quantity: int, cost_per_unit: float
-) -> list[CargoHold]:
-    """Add purchased cargo, merging with existing holdings using weighted average cost."""
-    result: list[CargoHold] = []
-    merged = False
-    for hold in cargo:
-        if hold.commodity == commodity:
-            total_qty = hold.quantity + quantity
-            avg_cost = (
-                (hold.quantity * hold.cost_per_unit + quantity * cost_per_unit) / total_qty
-                if total_qty > 0
-                else 0.0
-            )
-            result.append(CargoHold(commodity=commodity, quantity=total_qty, cost_per_unit=avg_cost))
-            merged = True
-        else:
-            result.append(hold)
-    if not merged:
-        result.append(CargoHold(commodity=commodity, quantity=quantity, cost_per_unit=cost_per_unit))
-    return result
-
-
-def _remove_cargo(cargo: list[CargoHold], commodity: CommodityType, quantity: int) -> list[CargoHold]:
-    """Remove sold cargo from holdings."""
-    result: list[CargoHold] = []
-    for hold in cargo:
-        if hold.commodity == commodity:
-            remaining = hold.quantity - quantity
-            if remaining > 0:
-                result.append(CargoHold(commodity=commodity, quantity=remaining, cost_per_unit=hold.cost_per_unit))
-        else:
-            result.append(hold)
-    return result
