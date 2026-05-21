@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import final
 
-from tw_guidance_computer.application.ports.game_state_store import GameStateStore
+from tw_guidance_computer.application.ports.game_state_reader import GameStateReader
 from tw_guidance_computer.domain.models import PlayerStatus
 
 
@@ -12,7 +12,7 @@ from tw_guidance_computer.domain.models import PlayerStatus
 class GetPlayerStatus:
     """Retrieve the current player status snapshot."""
 
-    def __init__(self, store: GameStateStore) -> None:
+    def __init__(self, store: GameStateReader) -> None:
         """Initialize with a game state store.
 
         Args:

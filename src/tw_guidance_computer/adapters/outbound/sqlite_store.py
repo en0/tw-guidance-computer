@@ -1,4 +1,4 @@
-"""SQLite implementation of the GameStateStore port."""
+"""SQLite implementation of the GameStateReader and GameStateWriter ports."""
 
 from __future__ import annotations
 
@@ -7,7 +7,8 @@ import sqlite3
 from pathlib import Path
 from typing import final, override
 
-from tw_guidance_computer.application.ports.game_state_store import GameStateStore
+from tw_guidance_computer.application.ports.game_state_reader import GameStateReader
+from tw_guidance_computer.application.ports.game_state_writer import GameStateWriter
 from tw_guidance_computer.domain.exceptions import StorageError
 from tw_guidance_computer.domain.models import (
     CargoHold,
@@ -72,7 +73,7 @@ CREATE TABLE IF NOT EXISTS planets (
 
 
 @final
-class SqliteGameStateStore(GameStateStore):
+class SqliteGameStateStore(GameStateReader, GameStateWriter):
     """SQLite-backed persistent game state store."""
 
     def __init__(self, db_path: Path) -> None:

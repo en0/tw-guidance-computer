@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from tw_guidance_computer.application.parse_log_chunk import ParseLogChunk
-from tw_guidance_computer.application.ports.game_state_store import GameStateStore
+from tw_guidance_computer.application.ports.game_state_writer import GameStateWriter
 from tw_guidance_computer.domain.models import (
     CommodityType,
     PlayerStatus,
@@ -16,8 +16,7 @@ from tw_guidance_computer.domain.models import (
 
 @pytest.fixture()
 def mock_store():
-    store = MagicMock(spec=GameStateStore)
-    store.get_player_status.return_value = None
+    store = MagicMock(spec=GameStateWriter)
     return store
 
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import final
 
-from tw_guidance_computer.application.ports.game_state_store import GameStateStore
+from tw_guidance_computer.application.ports.game_state_reader import GameStateReader
 from tw_guidance_computer.domain.models import SafeHarborRoute
 from tw_guidance_computer.domain.warp_graph import WarpGraph
 
@@ -13,7 +13,7 @@ from tw_guidance_computer.domain.warp_graph import WarpGraph
 class FindSafeHarbor:
     """Find the nearest safe sector via BFS."""
 
-    def __init__(self, store: GameStateStore) -> None:
+    def __init__(self, store: GameStateReader) -> None:
         """Initialize with a game state store.
 
         Args:

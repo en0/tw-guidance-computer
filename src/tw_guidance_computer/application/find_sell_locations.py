@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections import deque
 from typing import final
 
-from tw_guidance_computer.application.ports.game_state_store import GameStateStore
+from tw_guidance_computer.application.ports.game_state_reader import GameStateReader
 from tw_guidance_computer.domain.models import CommodityType, SellRecommendation
 from tw_guidance_computer.domain.warp_graph import WarpGraph
 
@@ -14,7 +14,7 @@ from tw_guidance_computer.domain.warp_graph import WarpGraph
 class FindSellLocations:
     """Find the nearest ports that buy what the player is carrying."""
 
-    def __init__(self, store: GameStateStore) -> None:
+    def __init__(self, store: GameStateReader) -> None:
         """Initialize with a game state store.
 
         Args:

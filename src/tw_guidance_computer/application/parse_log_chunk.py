@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass, field
 from typing import final
 
-from tw_guidance_computer.application.ports.game_state_store import GameStateStore
+from tw_guidance_computer.application.ports.game_state_writer import GameStateWriter
 from tw_guidance_computer.domain.models import (
     CargoHold,
     CargoManifest,
@@ -42,7 +42,7 @@ class ParseLogChunk:
     and extracts sectors, ports, warps, inventory, and chat.
     """
 
-    def __init__(self, store: GameStateStore) -> None:
+    def __init__(self, store: GameStateWriter) -> None:
         """Initialize with a game state store.
 
         Args:

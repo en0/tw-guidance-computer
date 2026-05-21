@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from typing import final
 
-from tw_guidance_computer.application.ports.game_state_store import GameStateStore
+from tw_guidance_computer.application.ports.game_state_reader import GameStateReader
 from tw_guidance_computer.domain.models import Port
 
 
@@ -13,7 +13,7 @@ from tw_guidance_computer.domain.models import Port
 class SearchPorts:
     """Search ports by type pattern with wildcard support."""
 
-    def __init__(self, store: GameStateStore) -> None:
+    def __init__(self, store: GameStateReader) -> None:
         """Initialize with a game state store.
 
         Args:

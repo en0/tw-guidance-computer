@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import final
 
 from tw_guidance_computer.application.find_trade_pairs import FindTradePairs
-from tw_guidance_computer.application.ports.game_state_store import GameStateStore
+from tw_guidance_computer.application.ports.game_state_reader import GameStateReader
 from tw_guidance_computer.domain.models import NearestPair
 from tw_guidance_computer.domain.warp_graph import WarpGraph
 
@@ -14,7 +14,7 @@ from tw_guidance_computer.domain.warp_graph import WarpGraph
 class FindNearestPair:
     """Find trade pairs sorted by distance from a given sector."""
 
-    def __init__(self, store: GameStateStore, find_trade_pairs: FindTradePairs) -> None:
+    def __init__(self, store: GameStateReader, find_trade_pairs: FindTradePairs) -> None:
         """Initialize with a game state store and trade pair use case.
 
         Args:

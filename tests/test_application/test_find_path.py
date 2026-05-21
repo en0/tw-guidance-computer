@@ -5,14 +5,14 @@ from unittest.mock import MagicMock
 import pytest
 
 from tw_guidance_computer.application.find_path import FindPath
-from tw_guidance_computer.application.ports.game_state_store import GameStateStore
+from tw_guidance_computer.application.ports.game_state_reader import GameStateReader
 from tw_guidance_computer.domain.exceptions import PathNotFoundError
 from tw_guidance_computer.domain.models import WarpConnection
 
 
 @pytest.fixture()
 def mock_store():
-    return MagicMock(spec=GameStateStore)
+    return MagicMock(spec=GameStateReader)
 
 
 @pytest.fixture()

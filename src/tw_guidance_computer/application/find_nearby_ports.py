@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import final
 
-from tw_guidance_computer.application.ports.game_state_store import GameStateStore
+from tw_guidance_computer.application.ports.game_state_reader import GameStateReader
 from tw_guidance_computer.domain.models import NearbyPort
 from tw_guidance_computer.domain.warp_graph import WarpGraph
 
@@ -13,7 +13,7 @@ from tw_guidance_computer.domain.warp_graph import WarpGraph
 class FindNearbyPorts:
     """BFS to find all ports within a given hop distance."""
 
-    def __init__(self, store: GameStateStore) -> None:
+    def __init__(self, store: GameStateReader) -> None:
         """Initialize with a game state store.
 
         Args:
