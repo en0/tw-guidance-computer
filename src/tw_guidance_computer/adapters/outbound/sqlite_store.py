@@ -78,18 +78,19 @@ CREATE TABLE IF NOT EXISTS planets (
 class SqliteGameStateStore(GameStateReader, GameStateWriter, IntelStore):
     """SQLite-backed persistent game state store."""
 
-    def __init__(self, db_path: Path) -> None:
+    def __init__(self, db_path: Path, *, check_same_thread: bool = True) -> None:
         """Initialize the SQLite store.
 
         Args:
             db_path: Path to the SQLite database file.
+            check_same_thread: If False, allow connection use from non-creating thread.
 
         Raises:
             StorageError: If the database cannot be opened or initialized.
         """
         self._db_path = db_path
         try:
-            self._conn = sqlite3.connect(str(db_path), isolation_level="DEFERRED")
+            self._conn = sqlite3.connect(str(db_path), isolation_level="DEFERRED", check_same_thread=check_same_thread)
             self._exec("PRAGMA journal_mode=WAL")
             self._exec("PRAGMA busy_timeout=5000")
             self._conn.executescript(_SCHEMA)

@@ -164,11 +164,14 @@ class AppContext:
         self.sync_worker: SyncIntelWorker | None = None
         self.push_intel: PushIntel | None = None
         self.pull_intel: PullIntel | None = None
+        self._intel_store: SqliteGameStateStore | None = None
 
         if intel_config is not None and intel_identity is not None:
+            intel_store = SqliteGameStateStore(db_path, check_same_thread=False)
+            self._intel_store = intel_store
             transport = SftpTransport(intel_config)
-            export_intel = ExportIntel(self.store)
-            import_intel = ImportIntel(self.store)
+            export_intel = ExportIntel(intel_store)
+            import_intel = ImportIntel(intel_store)
             self.push_intel = PushIntel(export_intel, transport, intel_identity)
             self.pull_intel = PullIntel(import_intel, transport, intel_identity, intel_config.max_file_size)
             self.sync_worker = SyncIntelWorker(self.push_intel, self.pull_intel, intel_config)
@@ -181,6 +184,8 @@ class AppContext:
         """Clean up resources."""
         if self.reader is not None:
             self.reader.close()
+        if self._intel_store is not None:
+            self._intel_store.close()
         self.store.close()
 
 
@@ -218,7 +223,7 @@ def build_cli(config_path: Path | None = None) -> CliAdapter:
     intel_store_instance: SqliteGameStateStore | None = None
 
     if intel_config is not None and intel_identity is not None and db_path.exists():
-        intel_store_instance = SqliteGameStateStore(db_path)
+        intel_store_instance = SqliteGameStateStore(db_path, check_same_thread=False)
         transport = SftpTransport(intel_config)
         export_intel = ExportIntel(intel_store_instance)
         import_intel = ImportIntel(intel_store_instance)
