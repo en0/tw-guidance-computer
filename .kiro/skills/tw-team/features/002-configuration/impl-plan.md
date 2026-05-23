@@ -29,7 +29,7 @@ The composition root is the consumer of this system: it calls the adapter direct
 - **Description**: Frozen dataclass `Profile` with fields `name: str` and `db_path: str`. Validates name in `__post_init__`: non-empty, max 64 chars, matches `[a-z0-9-]`, must not start or end with hyphen. Raises `ValidationError` on failure. The `db_path` field is a plain string — the domain doesn't know about filesystem paths, only that a profile has a storage location identifier.
 - **Special case — "default" name**: The name `"default"` is valid. The mapping of `"default"` → `game.db` (instead of `default.db`) is an infrastructure convention handled by the adapter's path generation, NOT domain logic.
 - **Dependencies**: None.
-- **Tests**: `tests/test_domain/test_profile.py` — validation rejects empty names, names with spaces/uppercase/special chars, names starting/ending with hyphens, names > 64 chars. Accepts valid names like `"saintcon"`, `"my-server-1"`, `"default"`.
+- **Tests**: `tests/test_domain/test_profile.py` — validation rejects empty names, names with spaces/uppercase/special chars, names starting/ending with hyphens, names > 64 chars. Accepts valid names like `"myserver"`, `"my-server-1"`, `"default"`.
 
 ### Unit 2: Domain — New Exceptions
 

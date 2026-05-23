@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import Callable
 from pathlib import Path
 from typing import final
@@ -9,9 +10,12 @@ from typing import final
 from tw_guidance_computer.adapters.inbound.cli_commands import CliAdapter
 from tw_guidance_computer.adapters.inbound.tui import HudDisplay
 from tw_guidance_computer.adapters.outbound.ini_profile_store import IniProfileStore
+from tw_guidance_computer.adapters.outbound.intel_identity import compute_intel_identity, validate_intel_config
 from tw_guidance_computer.adapters.outbound.log_reader import TailLogReader
+from tw_guidance_computer.adapters.outbound.sftp_transport import SftpTransport
 from tw_guidance_computer.adapters.outbound.sqlite_store import SqliteGameStateStore
 from tw_guidance_computer.application.create_profile import CreateProfile
+from tw_guidance_computer.application.export_intel import ExportIntel
 from tw_guidance_computer.application.find_nearby_ports import FindNearbyPorts
 from tw_guidance_computer.application.find_nearest_pair import FindNearestPair
 from tw_guidance_computer.application.find_path import FindPath
@@ -22,15 +26,19 @@ from tw_guidance_computer.application.get_database_summary import GetDatabaseSum
 from tw_guidance_computer.application.get_player_status import GetPlayerStatus
 from tw_guidance_computer.application.get_recent_chat import GetRecentChat
 from tw_guidance_computer.application.get_sector_info import GetSectorInfo
+from tw_guidance_computer.application.import_intel import ImportIntel
 from tw_guidance_computer.application.list_ports import ListPorts
 from tw_guidance_computer.application.list_profiles import ListProfiles
 from tw_guidance_computer.application.parse_log_chunk import ParseLogChunk
 from tw_guidance_computer.application.ports.log_reader import LogReader
+from tw_guidance_computer.application.pull_intel import PullIntel
+from tw_guidance_computer.application.push_intel import PushIntel
 from tw_guidance_computer.application.render_sector_art import RenderSectorArt
 from tw_guidance_computer.application.search_ports import SearchPorts
+from tw_guidance_computer.application.sync_intel_worker import SyncIntelWorker
 from tw_guidance_computer.application.use_cases import UseCases
 from tw_guidance_computer.domain.exceptions import DatabaseNotFoundError
-from tw_guidance_computer.domain.models import TurnThresholds
+from tw_guidance_computer.domain.models import IntelConfig, TurnThresholds
 
 
 def _default_config_path() -> Path:
@@ -40,20 +48,21 @@ def _default_config_path() -> Path:
 
 def _resolve_config(
     profile_name: str | None, config_path: Path | None = None
-) -> tuple[Path, TurnThresholds, str]:
-    """Resolve database path, turn thresholds, and effective profile name.
+) -> tuple[Path, TurnThresholds, str, IntelConfig | None, str | None]:
+    """Resolve database path, turn thresholds, intel config, and effective profile name.
 
     Args:
         profile_name: Profile to use, or None for the configured default.
         config_path: Override config file location (for testing).
 
     Returns:
-        Tuple of (db_path, turn_thresholds, effective_profile_name).
+        Tuple of (db_path, turn_thresholds, effective_profile_name, intel_config, intel_identity).
 
     Raises:
         ConfigError: If the config file is malformed.
         ProfileNotFoundError: If the requested profile doesn't exist.
         ValidationError: If threshold values are invalid.
+        IntelKeyError: If intel is configured but key files are missing.
     """
     store = IniProfileStore(config_path or _default_config_path())
     store.ensure_config_exists()
@@ -66,7 +75,29 @@ def _resolve_config(
     alert = int(store.get_config_value(effective_name, "turn_alert_threshold", "50"))
     thresholds = TurnThresholds(yellow=yellow, red=red, alert=alert)
 
-    return db_path, thresholds, effective_name
+    # Intel config resolution
+    intel_host = store.get_config_value(effective_name, "intel_host", "")
+    intel_config: IntelConfig | None = None
+    intel_identity: str | None = None
+
+    if intel_host.strip():
+        intel_key = os.path.expanduser(store.get_config_value(effective_name, "intel_key", ""))
+        intel_port = int(store.get_config_value(effective_name, "intel_port", "22"))
+        intel_sync_interval = int(store.get_config_value(effective_name, "intel_sync_interval", "300"))
+        intel_sync_budget = int(store.get_config_value(effective_name, "intel_sync_budget", "30"))
+        intel_max_file_size = int(store.get_config_value(effective_name, "intel_max_file_size", "10485760"))
+        intel_config = IntelConfig(
+            host=intel_host,
+            key_path=intel_key,
+            port=intel_port,
+            sync_interval=intel_sync_interval,
+            sync_budget=intel_sync_budget,
+            max_file_size=intel_max_file_size,
+        )
+        validate_intel_config(intel_config)
+        intel_identity = compute_intel_identity(intel_key)
+
+    return db_path, thresholds, effective_name, intel_config, intel_identity
 
 
 @final
@@ -96,8 +127,9 @@ class AppContext:
             ProfileNotFoundError: If the requested profile doesn't exist.
             ValidationError: If threshold values are invalid.
             DatabaseNotFoundError: If require_existing_db and DB doesn't exist.
+            IntelKeyError: If intel is configured but key files are missing.
         """
-        db_path, thresholds, _ = _resolve_config(profile_name, config_path)
+        db_path, thresholds, _, intel_config, intel_identity = _resolve_config(profile_name, config_path)
 
         if require_existing_db and not db_path.exists():
             raise DatabaseNotFoundError(
@@ -105,6 +137,7 @@ class AppContext:
             )
 
         self.thresholds = thresholds
+        self.intel_config = intel_config
 
         db_path.parent.mkdir(parents=True, exist_ok=True)
         self.store = SqliteGameStateStore(db_path)
@@ -126,6 +159,19 @@ class AppContext:
             get_database_summary=GetDatabaseSummary(self.store),
             find_safe_harbor=FindSafeHarbor(self.store),
         )
+
+        # Intel wiring (only when configured)
+        self.sync_worker: SyncIntelWorker | None = None
+        self.push_intel: PushIntel | None = None
+        self.pull_intel: PullIntel | None = None
+
+        if intel_config is not None and intel_identity is not None:
+            transport = SftpTransport(intel_config)
+            export_intel = ExportIntel(self.store)
+            import_intel = ImportIntel(self.store)
+            self.push_intel = PushIntel(export_intel, transport, intel_identity)
+            self.pull_intel = PullIntel(import_intel, transport, intel_identity, intel_config.max_file_size)
+            self.sync_worker = SyncIntelWorker(self.push_intel, self.pull_intel, intel_config)
 
         self.reader: TailLogReader | None = None
         if log_path is not None:
@@ -165,6 +211,20 @@ def build_cli(config_path: Path | None = None) -> CliAdapter:
     """
     create, list_profiles = build_profile_use_cases(config_path)
 
+    # Resolve intel config for CLI push/pull commands
+    db_path, _, _, intel_config, intel_identity = _resolve_config(None, config_path)
+    push_intel: PushIntel | None = None
+    pull_intel: PullIntel | None = None
+    intel_store_instance: SqliteGameStateStore | None = None
+
+    if intel_config is not None and intel_identity is not None and db_path.exists():
+        intel_store_instance = SqliteGameStateStore(db_path)
+        transport = SftpTransport(intel_config)
+        export_intel = ExportIntel(intel_store_instance)
+        import_intel = ImportIntel(intel_store_instance)
+        push_intel = PushIntel(export_intel, transport, intel_identity)
+        pull_intel = PullIntel(import_intel, transport, intel_identity, intel_config.max_file_size)
+
     def game_context_factory(
         profile_name: str | None,
     ) -> tuple[UseCases, Callable[[], None]]:
@@ -179,6 +239,10 @@ def build_cli(config_path: Path | None = None) -> CliAdapter:
         create_profile=create,
         list_profiles=list_profiles,
         game_context_factory=game_context_factory,
+        push_intel=push_intel,
+        pull_intel=pull_intel,
+        intel_config=intel_config,
+        intel_store=intel_store_instance,
     )
 
 
@@ -197,13 +261,13 @@ def build_hud(config_path: Path | None = None) -> HudDisplay:
         profile_name: str | None,
         log_path: Path,
         parse_existing: bool,
-    ) -> tuple[UseCases, LogReader, TurnThresholds, Callable[[], None]]:
+    ) -> tuple[UseCases, LogReader, TurnThresholds, SyncIntelWorker | None, Callable[[], None]]:
         ctx = AppContext(profile_name=profile_name, config_path=config_path, log_path=log_path)
         assert ctx.reader is not None
         if parse_existing:
             full_text = ctx.reader.read_full()
             ctx.use_cases.parse_log_chunk.execute(full_text)
-        return ctx.use_cases, ctx.reader, ctx.thresholds, ctx.close
+        return ctx.use_cases, ctx.reader, ctx.thresholds, ctx.sync_worker, ctx.close
 
     return HudDisplay(
         create_profile=create,

@@ -3,6 +3,7 @@
 from tw_guidance_computer.domain.models.art import ArtCell
 from tw_guidance_computer.domain.models.cargo import CargoHold, CargoManifest
 from tw_guidance_computer.domain.models.chat import ChatMessage
+from tw_guidance_computer.domain.models.intel import IntelConfig, IntelMergeResult, RemoteFile, SyncStatus
 from tw_guidance_computer.domain.models.planet import Planet
 from tw_guidance_computer.domain.models.player import PlayerStatus
 from tw_guidance_computer.domain.models.port import NearbyPort, Port, PortCommodity
@@ -20,6 +21,8 @@ __all__ = [
     "ChatMessage",
     "CommodityType",
     "DatabaseSummary",
+    "IntelConfig",
+    "IntelMergeResult",
     "NearbyPort",
     "NearestPair",
     "Planet",
@@ -28,10 +31,12 @@ __all__ = [
     "ProfileListing",
     "Port",
     "PortCommodity",
+    "RemoteFile",
     "SafeHarborRoute",
     "Sector",
     "SectorDetail",
     "SellRecommendation",
+    "SyncStatus",
     "TradeDirection",
     "TradePair",
     "TradeRoute",

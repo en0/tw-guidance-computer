@@ -9,3 +9,7 @@ build/
 *.db
 .secret-patterns
 .kiro/skills/tw-team/refactors/
+
+# Intel server runtime files
+data/
+authorized_keys

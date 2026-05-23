@@ -8,12 +8,16 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, final
 
-from tw_guidance_computer.domain.exceptions import GuidanceError, PathNotFoundError
+from tw_guidance_computer.domain.exceptions import GuidanceError, IntelError, PathNotFoundError
 
 if TYPE_CHECKING:
     from tw_guidance_computer.application.create_profile import CreateProfile
     from tw_guidance_computer.application.list_profiles import ListProfiles
+    from tw_guidance_computer.application.ports.intel_store import IntelStore
+    from tw_guidance_computer.application.pull_intel import PullIntel
+    from tw_guidance_computer.application.push_intel import PushIntel
     from tw_guidance_computer.application.use_cases import UseCases
+    from tw_guidance_computer.domain.models import IntelConfig
 
 GameContextFactory = Callable[[str | None], tuple["UseCases", Callable[[], None]]]
 
@@ -38,6 +42,10 @@ class CliAdapter:
         create_profile: CreateProfile,
         list_profiles: ListProfiles,
         game_context_factory: GameContextFactory,
+        push_intel: PushIntel | None = None,
+        pull_intel: PullIntel | None = None,
+        intel_config: IntelConfig | None = None,
+        intel_store: IntelStore | None = None,
     ) -> None:
         """Initialize with profile use cases and a game context factory.
 
@@ -45,10 +53,18 @@ class CliAdapter:
             create_profile: Use case for creating profiles.
             list_profiles: Use case for listing profiles.
             game_context_factory: Callable that takes a profile name and returns (UseCases, close_fn).
+            push_intel: Optional use case for pushing intel to the server.
+            pull_intel: Optional use case for pulling intel from the server.
+            intel_config: Optional intel configuration (for display purposes).
+            intel_store: Optional intel store (for local count display).
         """
         self._create_profile = create_profile
         self._list_profiles = list_profiles
         self._game_context_factory = game_context_factory
+        self._push_intel = push_intel
+        self._pull_intel = pull_intel
+        self._intel_config = intel_config
+        self._intel_store = intel_store
         self._uc: UseCases | None = None
 
     def run(self, argv: list[str] | None = None) -> None:
@@ -66,6 +82,8 @@ class CliAdapter:
         with _cli_boundary():
             if args.command == "profile":
                 self._dispatch_profile(args)
+            elif args.command == "intel":
+                self._dispatch_intel(args)
             else:
                 self._dispatch_game(args)
 
@@ -119,6 +137,11 @@ class CliAdapter:
         p.add_argument("name")
         profile_sub.add_parser("list", help="List all profiles")
 
+        intel_parser = sub.add_parser("intel", help="Shared intel sync")
+        intel_sub = intel_parser.add_subparsers(dest="intel_command")
+        intel_sub.add_parser("push", help="Push local intel to the server")
+        intel_sub.add_parser("pull", help="Pull intel from the server")
+
         return parser
 
     def _dispatch_profile(self, args: argparse.Namespace) -> None:
@@ -136,6 +159,61 @@ class CliAdapter:
             case _:
                 print("Usage: tw profile {create|list}", file=sys.stderr)
                 sys.exit(1)
+
+    def _dispatch_intel(self, args: argparse.Namespace) -> None:
+        """Handle intel subcommands."""
+        match args.intel_command:
+            case "push":
+                self.intel_push()
+            case "pull":
+                self.intel_pull()
+            case _:
+                print("Usage: tw intel {push|pull}", file=sys.stderr)
+                sys.exit(1)
+
+    def intel_push(self) -> None:
+        """Push local intel to the shared server."""
+        if self._push_intel is None:
+            print("Error: Intel not configured. Set intel_host in your profile.", file=sys.stderr)
+            sys.exit(1)
+
+        assert self._intel_config is not None
+        assert self._intel_store is not None
+
+        sectors = self._intel_store.get_local_sectors()
+        ports = self._intel_store.get_local_ports()
+        warps = self._intel_store.get_local_warps()
+        planets = self._intel_store.get_local_planets()
+
+        print(f"Exporting {len(sectors)} sectors, {len(ports)} ports, {len(warps)} warps, {len(planets)} planets...")
+        print(f"Uploading to {self._intel_config.host}:{self._intel_config.port}...")
+
+        try:
+            count = self._push_intel.execute()
+        except IntelError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+
+        print(f"Done. Pushed {count} records.")
+
+    def intel_pull(self) -> None:
+        """Pull intel from the shared server."""
+        if self._pull_intel is None:
+            print("Error: Intel not configured. Set intel_host in your profile.", file=sys.stderr)
+            sys.exit(1)
+
+        try:
+            result = self._pull_intel.execute()
+        except IntelError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+
+        print(
+            f"Merging: +{result.sectors_added} sectors, +{result.ports_added} ports, "
+            f"{result.ports_updated} ports updated (fresher), "
+            f"+{result.warps_added} warps, +{result.planets_added} planets"
+        )
+        print("Done.")
 
     def _dispatch_game(self, args: argparse.Namespace) -> None:
         """Dispatch game commands using the context factory."""

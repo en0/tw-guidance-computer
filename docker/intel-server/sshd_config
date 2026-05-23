@@ -1,0 +1,9 @@
+PermitRootLogin no
+PasswordAuthentication no
+AuthorizedKeysFile /etc/tw-intel/keys
+ChrootDirectory /data
+ForceCommand internal-sftp -d /intel
+Subsystem sftp internal-sftp
+X11Forwarding no
+AllowTcpForwarding no
+PermitTunnel no

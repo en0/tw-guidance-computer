@@ -35,14 +35,14 @@ Format: INI with `[DEFAULT]` section for globals that cascade to all profile sec
 
 ```
 [DEFAULT]
-default_profile = saintcon
+default_profile = myserver
 experimental = false
 
 [profile:default]
 db = ~/.local/share/tw-guidance-computer/game.db
 
-[profile:saintcon]
-db = ~/.local/share/tw-guidance-computer/saintcon.db
+[profile:myserver]
+db = ~/.local/share/tw-guidance-computer/myserver.db
 experimental = true
 
 [profile:practice]
@@ -56,8 +56,8 @@ A special key `default_profile` in `[DEFAULT]` specifies which profile to use wh
 Both `tw` and `tw-hud` accept `--profile <name>` (short: `-p`):
 
 ```
-tw-hud -p saintcon ~/tradewars/sessions/saintcon.log
-tw -p saintcon sell
+tw-hud -p myserver ~/tradewars/sessions/myserver.log
+tw -p myserver sell
 tw sell                    # uses default_profile from config
 ```
 
@@ -104,7 +104,7 @@ tw profile list
 Lists all configured profiles, marking the default:
 
 ```
-  * saintcon (default)
+  * myserver (default)
     practice
     default
 ```

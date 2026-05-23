@@ -19,7 +19,7 @@
 
 ### UC#1 — Profile Remembers Settings ✓
 
-The `Profile` domain model stores `name` and `db_path`. The `IniProfileStore` persists this to disk as an INI section. Once a profile is created, the user runs `tw -p saintcon sell` or sets `default_profile = saintcon` in the config and just runs `tw sell`. No re-specification needed.
+The `Profile` domain model stores `name` and `db_path`. The `IniProfileStore` persists this to disk as an INI section. Once a profile is created, the user runs `tw -p myserver sell` or sets `default_profile = myserver` in the config and just runs `tw sell`. No re-specification needed.
 
 ### UC#2 — Default Profile ✓
 
@@ -42,8 +42,8 @@ Editable with `vim`, `nano`, `sed`, etc. File permissions set to `0o600` on crea
 
 Two mechanisms implemented:
 
-1. **Explicit**: `tw profile create saintcon` → prints `Created profile 'saintcon' (db: ~/.local/share/tw-guidance-computer/saintcon.db)`
-2. **Inline**: `tw-hud -p saintcon --create ~/sessions/log` → creates profile if missing, prints note to stderr, continues to launch HUD
+1. **Explicit**: `tw profile create myserver` → prints `Created profile 'myserver' (db: ~/.local/share/tw-guidance-computer/myserver.db)`
+2. **Inline**: `tw-hud -p myserver --create ~/sessions/log` → creates profile if missing, prints note to stderr, continues to launch HUD
 
 Edge case handled: `--create` with an already-existing profile silently continues (catches `ProfileExistsError`).
 

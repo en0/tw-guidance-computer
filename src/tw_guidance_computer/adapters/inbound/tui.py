@@ -5,24 +5,28 @@ from __future__ import annotations
 import argparse
 import curses
 import re
+import signal
 import sys
+import threading
 import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, final
 
 from tw_guidance_computer.adapters.inbound.alert_overlay import format_alert_overlay
+from tw_guidance_computer.adapters.inbound.sync_modal import format_sync_modal
 from tw_guidance_computer.application.ports.log_reader import LogReader
 from tw_guidance_computer.domain.exceptions import GuidanceError, ProfileExistsError
 from tw_guidance_computer.domain.models import ArtCell, PlayerStatus, SafeHarborRoute, TurnThresholds
 
 if TYPE_CHECKING:
     from tw_guidance_computer.application.create_profile import CreateProfile
+    from tw_guidance_computer.application.sync_intel_worker import SyncIntelWorker
     from tw_guidance_computer.application.use_cases import UseCases
 
 HudContextFactory = Callable[
     [str | None, Path, bool],
-    tuple["UseCases", LogReader, TurnThresholds, Callable[[], None]],
+    tuple["UseCases", LogReader, TurnThresholds, "SyncIntelWorker | None", Callable[[], None]],
 ]
 
 _ANSI_COLOR_RE = re.compile(r"\033\[38;5;(\d+)m")
@@ -48,10 +52,13 @@ class HudDisplay:
         """
         self._create_profile = create_profile
         self._hud_context_factory = hud_context_factory
+        self._sync_worker: SyncIntelWorker | None = None
         self._reader: LogReader
         self._uc: UseCases
         self._thresholds: TurnThresholds = TurnThresholds()
         self._running = True
+        self._shutting_down = False
+        self._sigint_count = 0
         self._pairs_mode = "best"  # "best" or "nearest"
         self._art_cache: list[list[ArtCell]] | None = None
         self._art_sector: int | None = None
@@ -80,12 +87,13 @@ class HudDisplay:
             except ProfileExistsError:
                 pass
 
-        uc, reader, thresholds, close_fn = self._hud_context_factory(
+        uc, reader, thresholds, sync_worker, close_fn = self._hud_context_factory(
             args.profile, args.logfile, args.parse_existing,
         )
         self._uc = uc
         self._reader = reader
         self._thresholds = thresholds
+        self._sync_worker = sync_worker
         try:
             curses.wrapper(self._main_loop)
         except GuidanceError as e:
@@ -122,6 +130,23 @@ class HudDisplay:
         curses.init_pair(4, curses.COLOR_RED, -1)
         curses.init_pair(5, curses.COLOR_MAGENTA, -1)
 
+        # SIGINT handling
+        def _sigint_handler(signum: int, frame: object) -> None:
+            self._sigint_count += 1
+            if self._sigint_count == 1:
+                self._initiate_shutdown()
+            else:
+                if self._sync_worker is not None:
+                    self._sync_worker.request_stop()
+                self._running = False
+
+        signal.signal(signal.SIGINT, _sigint_handler)
+
+        # Start background sync worker if configured
+        if self._sync_worker is not None:
+            t = threading.Thread(target=self._sync_worker.run, daemon=True)
+            t.start()
+
         error_msg: str | None = None
 
         while self._running:
@@ -136,22 +161,90 @@ class HudDisplay:
 
             # Check for quit key
             key = stdscr.getch()
-            if key == ord("q"):
-                self._running = False
-                break
-            elif key == ord("t"):
+            if key == ord("q") and not self._shutting_down:
+                self._initiate_shutdown()
+                if self._sync_worker is None:
+                    break
+            elif key == ord("t") and not self._shutting_down:
                 self._pairs_mode = "nearest" if self._pairs_mode == "best" else "best"
+
+            # Check shutdown completion
+            if self._shutting_down and self._sync_worker is not None:
+                status = self._sync_worker.get_status().shutdown_status
+                if status == "Done.":
+                    self._render_shutdown_frame(stdscr, status)
+                    stdscr.refresh()
+                    time.sleep(0.5)
+                    break
+                elif status is not None and status.startswith("Push failed:"):
+                    self._render_shutdown_frame(stdscr, status)
+                    stdscr.refresh()
+                    time.sleep(1.5)
+                    break
 
             # Render
             stdscr.erase()
             try:
-                self._render(stdscr)
+                if self._shutting_down:
+                    self._render_header(stdscr, stdscr.getmaxyx()[1], self._uc.get_player_status.execute())
+                    self._render_sync_modal(stdscr)
+                else:
+                    self._render(stdscr)
             except GuidanceError as e:
                 error_msg = str(e)
             if error_msg:
                 self._safe_addstr(stdscr, stdscr.getmaxyx()[0] - 2, 0, f" ⚠ {error_msg}", curses.color_pair(4))
             stdscr.refresh()
             time.sleep(0.25)
+
+    def _initiate_shutdown(self) -> None:
+        """Begin graceful shutdown sequence."""
+        if self._sync_worker is not None:
+            self._shutting_down = True
+            self._sync_worker.request_shutdown()
+        else:
+            self._running = False
+
+    def _render_shutdown_frame(self, stdscr: curses.window, status: str) -> None:
+        """Render a single frame showing the shutdown modal."""
+        stdscr.erase()
+        self._render_header(stdscr, stdscr.getmaxyx()[1], self._uc.get_player_status.execute())
+        self._render_sync_modal(stdscr)
+
+    def _render_sync_modal(self, stdscr: curses.window) -> None:
+        """Render the shutdown sync modal overlay centered on screen."""
+        max_y, max_x = stdscr.getmaxyx()
+        status = self._sync_worker.get_status().shutdown_status if self._sync_worker else None
+        lines = format_sync_modal(status)
+
+        title = " Syncing Intel "
+        content_width = max(len(title) + 4, max(len(line) for line in lines) + 4) if lines else len(title) + 4
+        box_width = min(max(content_width + 2, 39), max_x - 4)
+        box_height = 5
+
+        start_y = max(0, (max_y - box_height) // 2)
+        start_x = max(0, (max_x - box_width) // 2)
+
+        attr = curses.color_pair(2) | curses.A_BOLD
+
+        pad_left = (box_width - 2 - len(title)) // 2
+        pad_right = box_width - 2 - len(title) - pad_left
+        top_border = "╔" + "═" * pad_left + title + "═" * pad_right + "╗"
+        bot_border = "╚" + "═" * (box_width - 2) + "╝"
+
+        self._safe_addstr(stdscr, start_y, start_x, top_border, attr)
+        for i in range(1, box_height - 1):
+            self._safe_addstr(stdscr, start_y + i, start_x, "║" + " " * (box_width - 2) + "║", attr)
+        self._safe_addstr(stdscr, start_y + box_height - 1, start_x, bot_border, attr)
+
+        # Status line in center row
+        if lines:
+            status_text = lines[0][:box_width - 6]
+            if status_text.startswith("Push failed:"):
+                status_attr = curses.color_pair(4) | curses.A_BOLD
+            else:
+                status_attr = curses.color_pair(1)
+            self._safe_addstr(stdscr, start_y + 2, start_x + 3, status_text, status_attr)
 
     def _render(self, stdscr: curses.window) -> None:
         max_y, max_x = stdscr.getmaxyx()
@@ -191,8 +284,8 @@ class HudDisplay:
         # Footer
         self._safe_addstr(stdscr, max_y - 1, 0, " [q] quit  [t] toggle pairs ", curses.A_REVERSE)
 
-        # Safe harbor overlay
-        if status and status.turns_remaining < self._thresholds.alert:
+        # Safe harbor overlay (only if not shutting down — shutdown modal takes priority)
+        if not self._shutting_down and status and status.turns_remaining < self._thresholds.alert:
             if self._safe_harbor_sector != status.sector_id:
                 self._safe_harbor_cache = self._uc.find_safe_harbor.execute(status.sector_id)
                 self._safe_harbor_sector = status.sector_id
@@ -230,6 +323,22 @@ class HudDisplay:
             self._safe_addstr(stdscr, 1, col, "  │  ", curses.color_pair(3))
             col += 5
             self._safe_addstr(stdscr, 1, col, credits, curses.color_pair(3) | curses.A_BOLD)
+            col += len(credits)
+
+            # Intel error indicator
+            if self._sync_worker is not None:
+                last_error = self._sync_worker.get_status().last_error
+                if last_error:
+                    err_attr = curses.color_pair(4) | curses.A_BOLD | curses.A_REVERSE | curses.A_BLINK
+                    sep = "  │  "
+                    if max_x >= 90:
+                        indicator = f"! Intel {last_error}"
+                    else:
+                        indicator = f"! {last_error}"
+                    if col + len(sep) + len(indicator) < max_x:
+                        self._safe_addstr(stdscr, 1, col, sep, curses.color_pair(3))
+                        col += len(sep)
+                        self._safe_addstr(stdscr, 1, col, indicator, err_attr)
         else:
             self._safe_addstr(stdscr, 1, 0, " Waiting for data...", curses.color_pair(3))
 

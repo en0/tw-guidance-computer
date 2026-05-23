@@ -1,6 +1,6 @@
 [project]
 name = "tw-guidance-computer"
-version = "0.5.0"
+version = "0.6.0"
 description = "Trade Wars 2002 guidance computer — real-time HUD and query tool"
 license = "MIT"
 requires-python = ">=3.12"

@@ -8,8 +8,8 @@ from tw_guidance_computer.domain.models.profile import Profile, ProfileListing
 
 class TestProfile:
     def test_valid_simple_name(self):
-        p = Profile(name="saintcon", db_path="/some/path.db")
-        assert p.name == "saintcon"
+        p = Profile(name="myserver", db_path="/some/path.db")
+        assert p.name == "myserver"
         assert p.db_path == "/some/path.db"
 
     def test_valid_name_with_hyphens(self):
@@ -55,8 +55,8 @@ class TestProfile:
 
 class TestProfileListing:
     def test_default_profile_returns_match(self):
-        p = Profile(name="saintcon", db_path="/db/saintcon.db")
-        listing = ProfileListing(profiles=[p], default_name="saintcon")
+        p = Profile(name="myserver", db_path="/db/myserver.db")
+        listing = ProfileListing(profiles=[p], default_name="myserver")
         assert listing.default_profile is p
 
     def test_default_profile_returns_none_when_no_match(self):

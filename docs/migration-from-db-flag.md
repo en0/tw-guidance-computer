@@ -69,8 +69,8 @@ default_profile = default
 [profile:default]
 db = ~/.local/share/tw-guidance-computer/game.db
 
-[profile:saintcon]
-db = ~/.local/share/tw-guidance-computer/saintcon.db
+[profile:myserver]
+db = ~/.local/share/tw-guidance-computer/myserver.db
 ```
 
 Profile names must be lowercase alphanumeric with hyphens (1–64 chars, no leading/trailing hyphens).
@@ -84,7 +84,7 @@ tw profile list
 Output marks the default with `*`:
 
 ```
-  * saintcon (default)
+  * myserver (default)
     practice
     default
 ```

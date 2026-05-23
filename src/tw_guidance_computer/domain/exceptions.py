@@ -43,3 +43,23 @@ class ProfileExistsError(GuidanceError):
 
 class ConfigError(GuidanceError):
     """Raised when the config file is malformed or unreadable."""
+
+
+class IntelError(GuidanceError):
+    """Base exception for all intel sync errors."""
+
+
+class IntelConnectError(IntelError):
+    """Raised when connection or authentication to the intel server fails."""
+
+
+class IntelTransferError(IntelError):
+    """Raised when reading or writing files on the intel server fails."""
+
+
+class IntelDataError(IntelError):
+    """Raised when intel data is corrupt or invalid."""
+
+
+class IntelKeyError(IntelError):
+    """Raised when the SSH key file is inaccessible."""

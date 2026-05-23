@@ -1,6 +1,6 @@
 # Feature Design: Shared Sector Intelligence
 
-STATUS: ideation
+STATUS: building
 
 ## Use Cases (from user — do not modify)
 1. I can push my discovered sector data (topology only — not my ship/cargo/turns) to a shared location so my corp mates can see what I've explored.
@@ -43,8 +43,8 @@ intel_sync_interval = 300
 intel_sync_budget = 30
 intel_max_file_size = 10485760
 
-[profile:saintcon]
-db = ~/.local/share/tw-guidance-computer/saintcon.db
+[profile:myserver]
+db = ~/.local/share/tw-guidance-computer/myserver.db
 intel_host = intel.example.com
 intel_key = ~/.ssh/tw_intel_ed25519
 intel_port = 2222

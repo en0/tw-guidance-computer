@@ -26,7 +26,7 @@ def mock_close():
 
 @pytest.fixture()
 def mock_hud_context_factory(mock_use_cases, mock_reader, mock_close):
-    return MagicMock(return_value=(mock_use_cases, mock_reader, TurnThresholds(), mock_close))
+    return MagicMock(return_value=(mock_use_cases, mock_reader, TurnThresholds(), None, mock_close))
 
 
 @pytest.fixture()

@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.6.0
+
+### New Features
+
+- **Shared Intel Sync**: Push/pull sector discoveries to/from a shared SFTP server so corp mates pool exploration knowledge
+  - `tw intel push` — export local discoveries as CSV, upload via SFTP
+  - `tw intel pull` — download other players' intel, merge into local DB
+  - Conflict resolution: freshest `updated_at` wins for ports, explored beats unexplored for sectors, warps/planets are additive
+  - Only locally-discovered data is exported (imported data is never re-shared)
+- **HUD background sync**: Automatic pull on startup, push+pull on configurable interval, push on shutdown
+  - Shutdown modal shows sync progress ("Syncing Intel...") before exit
+  - First ctrl+c triggers graceful sync, second force-quits
+  - Failed sync shows blinking `! Intel E##` indicator in header bar until next success
+- **Intel server Docker container**: Alpine + OpenSSH, SFTP-only, self-hostable
+  - Single shared user, chrooted to data directory
+  - Operator adds player SSH public keys to grant access
+  - No shell access, no port forwarding
+- **Configuration**: `intel_host`, `intel_key`, `intel_port`, `intel_sync_interval`, `intel_sync_budget`, `intel_max_file_size` — all work at `[DEFAULT]` and per-profile levels
+- Intel features completely invisible when `intel_host` not configured
+
+### Bug Fixes
+
+- Fix `~` not expanded in `intel_key` config path
+
+### Architecture
+
+- New domain models: `IntelConfig`, `RemoteFile`, `IntelMergeResult`, `SyncStatus`
+- New exceptions: `IntelError`, `IntelConnectError`, `IntelTransferError`, `IntelDataError`, `IntelKeyError`
+- New ports: `IntelStore` (bulk export/import), `IntelTransport` (SFTP operations)
+- New use cases: `ExportIntel`, `ImportIntel`, `PushIntel`, `PullIntel`
+- New service: `SyncIntelWorker` (background sync algorithm)
+- New adapters: `SftpTransport` (subprocess-based), `intel_identity` (key hashing)
+- Schema migration: `source` and `updated_at` columns added to sectors, ports, warps, planets tables
+- CSV format with SHA-256 checksum for file integrity
+
 ## 0.5.0
 
 ### New Features
