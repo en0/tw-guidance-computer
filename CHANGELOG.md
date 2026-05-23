@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.1
+
+### Bug Fixes
+
+- Fix crash on HUD shutdown: sync worker used SQLite connection from wrong thread
+- Fix Docker intel server: locked user account, chroot ownership, authorized_keys permissions
+- Fix `~` not expanded in `intel_key` config path
+
 ## 0.6.0
 
 ### New Features

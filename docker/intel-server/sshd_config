@@ -1,6 +1,6 @@
 PermitRootLogin no
 PasswordAuthentication no
-AuthorizedKeysFile /etc/tw-intel/keys
+AuthorizedKeysFile /etc/tw-intel/authorized_keys
 ChrootDirectory /data
 ForceCommand internal-sftp -d /intel
 Subsystem sftp internal-sftp
