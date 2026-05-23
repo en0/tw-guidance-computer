@@ -220,8 +220,9 @@ def build_cli(config_path: Path | None = None) -> CliAdapter:
         profile_name: str | None,
     ) -> tuple[PushIntel | None, PullIntel | None, IntelConfig | None, SqliteGameStateStore | None]:
         db_path, _, _, intel_config, intel_identity = _resolve_config(profile_name, config_path)
-        if intel_config is None or intel_identity is None or not db_path.exists():
+        if intel_config is None or intel_identity is None:
             return None, None, None, None
+        db_path.parent.mkdir(parents=True, exist_ok=True)
         intel_store_instance = SqliteGameStateStore(db_path, check_same_thread=False)
         transport = SftpTransport(intel_config)
         export_intel = ExportIntel(intel_store_instance)

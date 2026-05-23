@@ -101,28 +101,31 @@ class TestIntelWiringEnabled:
         assert pull is not None
         assert config is not None
 
-    def test_cli_intel_none_when_db_missing(self, tmp_path: Path) -> None:
+    def test_cli_intel_creates_db_when_missing(self, tmp_path: Path) -> None:
         # Create key files
         key_path = tmp_path / "intel_key"
         key_path.write_text("-----BEGIN OPENSSH PRIVATE KEY-----\nfake\n-----END OPENSSH PRIVATE KEY-----\n")  # nosec
         pub_path = tmp_path / "intel_key.pub"
         pub_path.write_text("ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFake test@host\n")
 
+        db_path = tmp_path / "nonexistent" / "game.db"
         config_path = tmp_path / "config.ini"
         config_path.write_text(
             "[DEFAULT]\n"
             "default_profile = default\n\n"
             "[profile:default]\n"
-            f"db = {tmp_path / 'nonexistent' / 'game.db'}\n"
+            f"db = {db_path}\n"
             f"intel_host = intel.example.com\n"
             f"intel_key = {key_path}\n"
         )
 
         cli = build_cli(config_path=config_path)
         assert cli._intel_context_factory is not None
-        push, pull, _, _ = cli._intel_context_factory(None)
-        assert push is None
-        assert pull is None
+        push, pull, config, store = cli._intel_context_factory(None)
+        assert push is not None
+        assert pull is not None
+        assert config is not None
+        assert db_path.exists()
 
 
 class TestIntelWiringErrors:
