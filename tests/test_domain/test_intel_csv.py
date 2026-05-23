@@ -177,6 +177,17 @@ class TestDeserializeIntel:
         with pytest.raises(IntelDataError, match="Checksum mismatch"):
             deserialize_intel(corrupted)
 
+    def test_crlf_content_validates_checksum(self, sample_sectors):
+        """Files with \\r\\n line endings are normalized before checksum validation."""
+        # Simulate: content with \r\n, checksum computed AFTER normalization
+        # (this is what happens when read_text() normalizes and the serializer used \n)
+        content = serialize_intel(sample_sectors, [], [], [])
+        # Inject \r\n — simulating a file that somehow got \r\n but checksum is over \n content
+        crlf_content = content.replace("\n", "\r\n")
+        # After normalization, body matches original \n content, checksum still valid
+        sectors, _, _, _ = deserialize_intel(crlf_content)
+        assert len(sectors) == 2
+
     def test_corrupt_sector_data_raises(self):
         # Build valid content but with bad sector data
         body = "#TYPE:sectors\nid,region,explored,updated_at\nnot_a_number,region,1,1.0\n"

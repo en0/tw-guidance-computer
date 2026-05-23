@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.2
+
+### Bug Fixes
+
+- Fix CSV checksum mismatch: serializer used mixed \r\n/\n line endings, download normalized to \n, breaking checksum validation
+- Force consistent \n line terminators in CSV serialization
+- Normalize \r\n on deserialization for cross-platform compatibility
+
 ## 0.6.1
 
 ### Bug Fixes

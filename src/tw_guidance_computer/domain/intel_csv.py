@@ -31,8 +31,8 @@ def serialize_intel(
     Returns:
         Complete CSV string with type headers and checksum trailer.
     """
-    output = io.StringIO()
-    writer = csv.writer(output)
+    output = io.StringIO(newline="")
+    writer = csv.writer(output, lineterminator="\n")
 
     output.write("#TYPE:sectors\n")
     writer.writerow(["id", "region", "explored", "updated_at"])
@@ -85,6 +85,8 @@ def deserialize_intel(
     Raises:
         IntelDataError: On checksum mismatch or parse failure.
     """
+    # Normalize line endings — old serializer produced mixed \r\n and \n
+    content = content.replace("\r\n", "\n")
     lines = content.split("\n")
 
     # Find and validate checksum
