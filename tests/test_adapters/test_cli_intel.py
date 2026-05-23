@@ -142,3 +142,59 @@ class TestIntelPull:
         cli_with_intel.run(["intel", "pull"])
 
         mock_pull_intel.execute.assert_called_once_with()
+
+
+class TestIntelProfileRouting:
+    def test_factory_called_with_profile_on_push(self, capsys):
+        mock_push = MagicMock()
+        mock_push.execute.return_value = 10
+        mock_store = MagicMock()
+        mock_store.get_local_sectors.return_value = []
+        mock_store.get_local_ports.return_value = []
+        mock_store.get_local_warps.return_value = []
+        mock_store.get_local_planets.return_value = []
+        config = IntelConfig(host="h", key_path="/k", port=22)
+
+        factory = MagicMock(return_value=(mock_push, MagicMock(), config, mock_store))
+
+        cli = CliAdapter(
+            create_profile=MagicMock(),
+            list_profiles=MagicMock(),
+            game_context_factory=MagicMock(),
+            intel_context_factory=factory,
+        )
+        cli.run(["-p", "debug", "intel", "push"])
+
+        factory.assert_called_once_with("debug")
+
+    def test_factory_called_with_profile_on_pull(self, capsys):
+        mock_pull = MagicMock()
+        mock_pull.execute.return_value = IntelMergeResult()
+
+        factory = MagicMock(return_value=(MagicMock(), mock_pull, MagicMock(), MagicMock()))
+
+        cli = CliAdapter(
+            create_profile=MagicMock(),
+            list_profiles=MagicMock(),
+            game_context_factory=MagicMock(),
+            intel_context_factory=factory,
+        )
+        cli.run(["-p", "myprofile", "intel", "pull"])
+
+        factory.assert_called_once_with("myprofile")
+
+    def test_factory_called_with_none_when_no_profile(self, capsys):
+        mock_pull = MagicMock()
+        mock_pull.execute.return_value = IntelMergeResult()
+
+        factory = MagicMock(return_value=(MagicMock(), mock_pull, MagicMock(), MagicMock()))
+
+        cli = CliAdapter(
+            create_profile=MagicMock(),
+            list_profiles=MagicMock(),
+            game_context_factory=MagicMock(),
+            intel_context_factory=factory,
+        )
+        cli.run(["intel", "pull"])
+
+        factory.assert_called_once_with(None)

@@ -20,6 +20,9 @@ if TYPE_CHECKING:
     from tw_guidance_computer.domain.models import IntelConfig
 
 GameContextFactory = Callable[[str | None], tuple["UseCases", Callable[[], None]]]
+IntelContextFactory = Callable[
+    [str | None], tuple["PushIntel | None", "PullIntel | None", "IntelConfig | None", "IntelStore | None"]
+]
 
 
 @contextmanager
@@ -46,6 +49,7 @@ class CliAdapter:
         pull_intel: PullIntel | None = None,
         intel_config: IntelConfig | None = None,
         intel_store: IntelStore | None = None,
+        intel_context_factory: IntelContextFactory | None = None,
     ) -> None:
         """Initialize with profile use cases and a game context factory.
 
@@ -57,6 +61,7 @@ class CliAdapter:
             pull_intel: Optional use case for pulling intel from the server.
             intel_config: Optional intel configuration (for display purposes).
             intel_store: Optional intel store (for local count display).
+            intel_context_factory: Optional factory that resolves intel for a given profile.
         """
         self._create_profile = create_profile
         self._list_profiles = list_profiles
@@ -65,6 +70,7 @@ class CliAdapter:
         self._pull_intel = pull_intel
         self._intel_config = intel_config
         self._intel_store = intel_store
+        self._intel_context_factory = intel_context_factory
         self._uc: UseCases | None = None
 
     def run(self, argv: list[str] | None = None) -> None:
@@ -162,6 +168,13 @@ class CliAdapter:
 
     def _dispatch_intel(self, args: argparse.Namespace) -> None:
         """Handle intel subcommands."""
+        if self._intel_context_factory is not None:
+            push, pull, config, store = self._intel_context_factory(args.profile)
+            self._push_intel = push
+            self._pull_intel = pull
+            self._intel_config = config
+            self._intel_store = store
+
         match args.intel_command:
             case "push":
                 self.intel_push()

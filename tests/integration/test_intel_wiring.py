@@ -37,9 +37,11 @@ class TestIntelWiringDisabled:
         )
 
         cli = build_cli(config_path=config_path)
-        assert cli._push_intel is None
-        assert cli._pull_intel is None
-        assert cli._intel_config is None
+        assert cli._intel_context_factory is not None
+        push, pull, config, store = cli._intel_context_factory(None)
+        assert push is None
+        assert pull is None
+        assert config is None
 
 
 class TestIntelWiringEnabled:
@@ -93,9 +95,11 @@ class TestIntelWiringEnabled:
         )
 
         cli = build_cli(config_path=config_path)
-        assert cli._push_intel is not None
-        assert cli._pull_intel is not None
-        assert cli._intel_config is not None
+        assert cli._intel_context_factory is not None
+        push, pull, config, store = cli._intel_context_factory(None)
+        assert push is not None
+        assert pull is not None
+        assert config is not None
 
     def test_cli_intel_none_when_db_missing(self, tmp_path: Path) -> None:
         # Create key files
@@ -115,8 +119,10 @@ class TestIntelWiringEnabled:
         )
 
         cli = build_cli(config_path=config_path)
-        assert cli._push_intel is None
-        assert cli._pull_intel is None
+        assert cli._intel_context_factory is not None
+        push, pull, _, _ = cli._intel_context_factory(None)
+        assert push is None
+        assert pull is None
 
 
 class TestIntelWiringErrors:
