@@ -84,3 +84,19 @@ class GameStateWriter(Protocol):
             StorageError: If the write fails.
         """
         ...
+
+    def replace_warps_from_sector(self, sector_id: int, warps: list[WarpConnection]) -> None:
+        """Delete all warps from a sector and insert the provided set.
+
+        Self-healing semantics: the provided warp list is treated as the
+        complete, authoritative set of warps from this sector. Any previously
+        stored warps (including intel-imported ones) are removed and replaced.
+
+        Args:
+            sector_id: The sector whose outbound warps are being replaced.
+            warps: The complete set of outbound warp connections from this sector.
+
+        Raises:
+            StorageError: If the write fails.
+        """
+        ...

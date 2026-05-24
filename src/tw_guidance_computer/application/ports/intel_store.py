@@ -17,7 +17,7 @@ class IntelStore(Protocol):
     Import methods accept records with timestamps and apply merge strategies:
     - Sectors: explored beats unexplored; ties keep local.
     - Ports: freshest updated_at wins (strict >); ties keep local.
-    - Warps: additive (INSERT OR IGNORE).
+    - Warps: replace-per-sector-if-newer (grouped by from_sector).
     - Planets: additive (INSERT OR IGNORE).
 
     All methods raise StorageError on failure.
@@ -105,7 +105,11 @@ class IntelStore(Protocol):
     def import_warps(self, warps: list[tuple[WarpConnection, float]], source: str) -> int:
         """Import warps from a remote source.
 
-        Merge strategy: additive (INSERT OR IGNORE).
+        Merge strategy: replace-per-sector-if-newer. Incoming warps are grouped
+        by from_sector. For each sector group, if the imported timestamp is
+        strictly greater than the max local updated_at for that sector's warps,
+        all local warps from that sector are deleted and replaced with the
+        imported set. If local is newer or equal, the sector group is skipped.
 
         Args:
             warps: List of (WarpConnection, updated_at) tuples to import.

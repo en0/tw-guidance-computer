@@ -13,7 +13,6 @@ from tw_guidance_computer.application.ports.game_state_writer import GameStateWr
 from tw_guidance_computer.application.ports.intel_store import IntelStore
 from tw_guidance_computer.domain.exceptions import StorageError
 from tw_guidance_computer.domain.models import (
-    CargoHold,
     ChatMessage,
     CommodityType,
     Planet,
@@ -181,6 +180,17 @@ class SqliteGameStateStore(GameStateReader, GameStateWriter, IntelStore):
         self._commit()
 
     @override
+    def replace_warps_from_sector(self, sector_id: int, warps: list[WarpConnection]) -> None:
+        self._exec("DELETE FROM warps WHERE from_sector = ?", (sector_id,))
+        now = time.time()
+        for warp in warps:
+            self._exec(
+                "INSERT INTO warps (from_sector, to_sector, explored, updated_at) VALUES (?, ?, ?, ?)",
+                (warp.from_sector, warp.to_sector, int(warp.explored), now),
+            )
+        self._commit()
+
+    @override
     def set_player_status(self, status: PlayerStatus) -> None:
         cargo_json = json.dumps(
             [
@@ -262,23 +272,11 @@ class SqliteGameStateStore(GameStateReader, GameStateWriter, IntelStore):
         ).fetchone()
         if row is None:
             return None
-        try:
-            cargo_data = json.loads(row[3])
-            cargo = [
-                CargoHold(
-                    commodity=CommodityType(c["commodity"]),
-                    quantity=c["quantity"],
-                    cost_per_unit=c["cost_per_unit"],
-                )
-                for c in cargo_data
-            ]
-        except (json.JSONDecodeError, TypeError, ValueError, KeyError) as e:
-            raise StorageError(f"Corrupt cargo data in player_status: {e}") from e
         return PlayerStatus(
             sector_id=row[0],
             turns_remaining=row[1],
             credits=row[2],
-            cargo=cargo,
+            cargo=[],
             holds_total=row[4],
             holds_empty=row[5],
         )
@@ -446,15 +444,32 @@ class SqliteGameStateStore(GameStateReader, GameStateWriter, IntelStore):
 
     @override
     def import_warps(self, warps: list[tuple[WarpConnection, float]], source: str) -> int:
-        """Import warps with additive (INSERT OR IGNORE) strategy."""
-        count = 0
+        """Import warps with replace-per-sector-if-newer strategy."""
+        # Group by from_sector
+        groups: dict[int, list[tuple[WarpConnection, float]]] = {}
         for warp, updated_at in warps:
-            cursor = self._exec(
-                "INSERT OR IGNORE INTO warps (from_sector, to_sector, explored, source, updated_at)"
-                " VALUES (?, ?, ?, ?, ?)",
-                (warp.from_sector, warp.to_sector, int(warp.explored), source, updated_at),
-            )
-            count += cursor.rowcount
+            groups.setdefault(warp.from_sector, []).append((warp, updated_at))
+
+        count = 0
+        for sector_id, sector_warps in groups.items():
+            imported_ts = max(ts for _, ts in sector_warps)
+            row = self._exec(
+                "SELECT MAX(updated_at) FROM warps WHERE from_sector = ?",
+                (sector_id,),
+            ).fetchone()
+            local_max = row[0] if row and row[0] is not None else None
+
+            if local_max is not None and imported_ts <= local_max:
+                continue
+
+            self._exec("DELETE FROM warps WHERE from_sector = ?", (sector_id,))
+            for warp, updated_at in sector_warps:
+                self._exec(
+                    "INSERT INTO warps (from_sector, to_sector, explored, source, updated_at)"
+                    " VALUES (?, ?, ?, ?, ?)",
+                    (warp.from_sector, warp.to_sector, int(warp.explored), source, updated_at),
+                )
+                count += 1
         self._commit()
         return count
 

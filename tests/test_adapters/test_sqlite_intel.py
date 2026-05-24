@@ -218,7 +218,7 @@ class TestImportPorts:
 
 
 class TestImportWarps:
-    def test_inserts_new_warp(self, store):
+    def test_inserts_new_sector_warps(self, store):
         count = store.import_warps(
             [(WarpConnection(from_sector=500, to_sector=600), 1000.0)],
             source="remote1",
@@ -228,23 +228,88 @@ class TestImportWarps:
         assert len(warps) == 1
         assert warps[0].to_sector == 600
 
-    def test_ignores_existing_warp(self, store):
-        store.upsert_warp(WarpConnection(from_sector=100, to_sector=200))
+    def test_newer_replaces_all_warps_from_sector(self, store):
+        # Local warps from sector 100
+        store._exec(
+            "INSERT INTO warps (from_sector, to_sector, explored, updated_at) VALUES (?, ?, ?, ?)",
+            (100, 200, 1, 1000.0),
+        )
+        store._exec(
+            "INSERT INTO warps (from_sector, to_sector, explored, updated_at) VALUES (?, ?, ?, ?)",
+            (100, 300, 1, 1000.0),
+        )
+        store._commit()
+        # Import newer set with different warps
         count = store.import_warps(
-            [(WarpConnection(from_sector=100, to_sector=200), 1000.0)],
+            [
+                (WarpConnection(from_sector=100, to_sector=400), 2000.0),
+                (WarpConnection(from_sector=100, to_sector=500), 2000.0),
+                (WarpConnection(from_sector=100, to_sector=600), 2000.0),
+            ],
             source="remote1",
         )
-        assert count == 0
+        assert count == 3
+        warps = store.get_warps(100)
+        destinations = sorted(w.to_sector for w in warps)
+        assert destinations == [400, 500, 600]
 
-    def test_additive_new_warps(self, store):
-        store.upsert_warp(WarpConnection(from_sector=100, to_sector=200))
+    def test_older_import_skipped(self, store):
+        store._exec(
+            "INSERT INTO warps (from_sector, to_sector, explored, updated_at) VALUES (?, ?, ?, ?)",
+            (100, 200, 1, 2000.0),
+        )
+        store._commit()
         count = store.import_warps(
             [(WarpConnection(from_sector=100, to_sector=300), 1000.0)],
             source="remote1",
         )
-        assert count == 1
+        assert count == 0
         warps = store.get_warps(100)
-        assert len(warps) == 2
+        assert len(warps) == 1
+        assert warps[0].to_sector == 200
+
+    def test_equal_timestamp_skipped(self, store):
+        store._exec(
+            "INSERT INTO warps (from_sector, to_sector, explored, updated_at) VALUES (?, ?, ?, ?)",
+            (100, 200, 1, 1000.0),
+        )
+        store._commit()
+        count = store.import_warps(
+            [(WarpConnection(from_sector=100, to_sector=300), 1000.0)],
+            source="remote1",
+        )
+        assert count == 0
+        warps = store.get_warps(100)
+        assert len(warps) == 1
+        assert warps[0].to_sector == 200
+
+    def test_mixed_sectors_some_replaced_some_skipped(self, store):
+        # Sector 100: old local (ts=1000)
+        store._exec(
+            "INSERT INTO warps (from_sector, to_sector, explored, updated_at) VALUES (?, ?, ?, ?)",
+            (100, 200, 1, 1000.0),
+        )
+        # Sector 300: fresh local (ts=3000)
+        store._exec(
+            "INSERT INTO warps (from_sector, to_sector, explored, updated_at) VALUES (?, ?, ?, ?)",
+            (300, 400, 1, 3000.0),
+        )
+        store._commit()
+        # Import: sector 100 newer (ts=2000), sector 300 older (ts=2000)
+        count = store.import_warps(
+            [
+                (WarpConnection(from_sector=100, to_sector=999), 2000.0),
+                (WarpConnection(from_sector=300, to_sector=999), 2000.0),
+            ],
+            source="remote1",
+        )
+        assert count == 1  # only sector 100 replaced
+        warps_100 = store.get_warps(100)
+        assert len(warps_100) == 1
+        assert warps_100[0].to_sector == 999
+        warps_300 = store.get_warps(300)
+        assert len(warps_300) == 1
+        assert warps_300[0].to_sector == 400  # unchanged
 
 
 class TestImportPlanets:
@@ -303,6 +368,7 @@ class TestSourceColumn:
         row = store._exec(
             "SELECT source FROM warps WHERE from_sector = ? AND to_sector = ?", (100, 200)
         ).fetchone()
+        assert row is not None
         assert row[0] == "warp_src"
 
     def test_import_planet_sets_source(self, store):

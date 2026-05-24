@@ -71,8 +71,7 @@ class TestSqliteGameStateStore:
         assert status.sector_id == 865
         assert status.turns_remaining == 800
         assert status.credits == 5000
-        assert len(status.cargo) == 1
-        assert status.cargo[0].cost_per_unit == 31.5
+        assert status.cargo == []
 
     def test_chat_messages(self, store):
         store.add_chat_message(ChatMessage(sender="bob", message="hello", channel="radio"))
@@ -143,3 +142,70 @@ class TestGetSafeSectorIds:
         store.upsert_port(Port(sector_id=600, name="Trader Vic's", port_class=6, port_type="SBS"))
         result = store.get_safe_sector_ids()
         assert result == []
+
+
+class TestCargoStubbed:
+    def test_get_player_status_returns_empty_cargo(self, store):
+        cargo = [CargoHold(CommodityType.ORGANICS, 20, 31.5)]
+        store.set_player_status(PlayerStatus(
+            sector_id=100, turns_remaining=500, credits=1000,
+            cargo=cargo, holds_total=20, holds_empty=0,
+        ))
+        status = store.get_player_status()
+        assert status is not None
+        assert status.cargo == []
+
+    def test_set_player_status_still_stores_cargo(self, store):
+        cargo = [CargoHold(CommodityType.FUEL_ORE, 10, 50.0)]
+        store.set_player_status(PlayerStatus(
+            sector_id=100, turns_remaining=500, credits=1000,
+            cargo=cargo, holds_total=20, holds_empty=10,
+        ))
+        row = store._exec(
+            "SELECT cargo_json FROM player_status WHERE id = 1"
+        ).fetchone()
+        assert row is not None
+        assert "Fuel Ore" in row[0]
+
+
+class TestReplaceWarpsFromSector:
+    def test_replaces_existing_warps(self, store):
+        store.upsert_warp(WarpConnection(from_sector=100, to_sector=200))
+        store.upsert_warp(WarpConnection(from_sector=100, to_sector=300))
+        store.replace_warps_from_sector(100, [
+            WarpConnection(from_sector=100, to_sector=400),
+            WarpConnection(from_sector=100, to_sector=500),
+        ])
+        warps = store.get_warps(100)
+        destinations = sorted(w.to_sector for w in warps)
+        assert destinations == [400, 500]
+
+    def test_inserts_when_no_prior_warps(self, store):
+        store.replace_warps_from_sector(100, [
+            WarpConnection(from_sector=100, to_sector=200),
+        ])
+        warps = store.get_warps(100)
+        assert len(warps) == 1
+        assert warps[0].to_sector == 200
+
+    def test_does_not_affect_other_sectors(self, store):
+        store.upsert_warp(WarpConnection(from_sector=100, to_sector=200))
+        store.upsert_warp(WarpConnection(from_sector=200, to_sector=300))
+        store.replace_warps_from_sector(100, [
+            WarpConnection(from_sector=100, to_sector=999),
+        ])
+        warps_200 = store.get_warps(200)
+        assert len(warps_200) == 1
+        assert warps_200[0].to_sector == 300
+
+    def test_removes_intel_imported_warps(self, store):
+        store.import_warps(
+            [(WarpConnection(from_sector=100, to_sector=200), 1000.0)],
+            source="remote1",
+        )
+        store.replace_warps_from_sector(100, [
+            WarpConnection(from_sector=100, to_sector=300),
+        ])
+        warps = store.get_warps(100)
+        assert len(warps) == 1
+        assert warps[0].to_sector == 300
