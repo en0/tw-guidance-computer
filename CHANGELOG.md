@@ -12,6 +12,10 @@
 - **Fix false warp edges from nav menu**: The sector navigation menu (`(T)`, `(S)`, `(*)`, `(N)` entries) was being parsed as authoritative sector data, creating false warp edges in the graph. Trade pairs showed sectors as 1-hop apart that weren't actually adjacent.
 - **Self-healing warps**: Visiting a sector now replaces ALL existing warp edges from that sector with the complete observed set. Bad data is corrected as you explore.
 - **Intel import warp strategy**: Changed from additive (INSERT OR IGNORE) to replace-per-sector-if-newer. False edges no longer persist through intel sync.
+- **Intel never overwrites local observations**: Intel import skips sectors that have locally-observed warps (`source IS NULL`). Visiting a sector is always authoritative — intel sync cannot re-corrupt self-healed data.
+- **Fix warp parsing during auto-warp**: The warp line often has the command prompt concatenated on the same line after ANSI stripping. The parser now checks for warps before checking break conditions, so self-healing fires reliably regardless of line concatenation.
+- **Log reader line buffering**: Holds back incomplete lines (no trailing newline) until more data arrives. Prevents chunk boundaries from splitting nav menu prefixes, which would bypass the nav exclusion check.
+- **Cross-chunk sector display continuity**: The parser tracks pending sector displays across chunk boundaries. If a sector display's warp line arrives in the next read cycle, it's still correctly attributed to the sector.
 
 ### Parser Patterns (exhaustive)
 

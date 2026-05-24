@@ -39,6 +39,7 @@ class TailLogReader(LogReader):
             LogReadError: If the log file cannot be opened.
         """
         self._path = log_path
+        self._partial: str = ""
         try:
             self._fd = open(log_path, "rb")  # noqa: SIM115
             self._fd.seek(0, os.SEEK_END)
@@ -52,6 +53,7 @@ class TailLogReader(LogReader):
 
         Returns:
             ANSI-stripped text if new data available, None otherwise.
+            Holds back the last incomplete line until a newline arrives.
 
         Raises:
             LogReadError: If reading fails.
@@ -64,8 +66,15 @@ class TailLogReader(LogReader):
         if not data:
             return None
         self._offset = self._fd.tell()
-        text = data.decode("utf-8", errors="replace")
-        return strip_ansi(text)
+        text = self._partial + data.decode("utf-8", errors="replace")
+        # Hold back the last incomplete line
+        last_nl = text.rfind("\n")
+        if last_nl == -1:
+            # No complete line yet — buffer everything
+            self._partial = text
+            return None
+        self._partial = text[last_nl + 1:]
+        return strip_ansi(text[:last_nl + 1])
 
     @override
     def has_data(self) -> bool:

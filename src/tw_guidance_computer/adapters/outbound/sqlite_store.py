@@ -444,7 +444,10 @@ class SqliteGameStateStore(GameStateReader, GameStateWriter, IntelStore):
 
     @override
     def import_warps(self, warps: list[tuple[WarpConnection, float]], source: str) -> int:
-        """Import warps with replace-per-sector-if-newer strategy."""
+        """Import warps with replace-per-sector-if-newer strategy.
+
+        Never overwrites locally-observed warps (source IS NULL).
+        """
         # Group by from_sector
         groups: dict[int, list[tuple[WarpConnection, float]]] = {}
         for warp, updated_at in warps:
@@ -453,6 +456,15 @@ class SqliteGameStateStore(GameStateReader, GameStateWriter, IntelStore):
         count = 0
         for sector_id, sector_warps in groups.items():
             imported_ts = max(ts for _, ts in sector_warps)
+
+            # Never overwrite locally-observed data
+            local_row = self._exec(
+                "SELECT source FROM warps WHERE from_sector = ? AND source IS NULL LIMIT 1",
+                (sector_id,),
+            ).fetchone()
+            if local_row is not None:
+                continue
+
             row = self._exec(
                 "SELECT MAX(updated_at) FROM warps WHERE from_sector = ?",
                 (sector_id,),

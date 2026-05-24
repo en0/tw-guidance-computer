@@ -59,3 +59,28 @@
 - Intel server setup guide (dedicated page with hardening tips, key management, troubleshooting)
 - Profile management guide (creating, switching, editing config)
 - HUD usage guide (keybindings, sections explained, what each display means)
+
+## Session Replay / Debug Harness
+
+Parser bugs are hard to diagnose because there's no way to see the raw game stream, player inputs, and HUD interpretation in one correlated timeline.
+
+**Known parser issues:**
+- Navpoint screen output gets parsed as current sector (greedy sector regex)
+- Trade pairs suggested that don't exist (stale data or misparse)
+- Various menus misidentified as game state
+
+**Proposed approaches:**
+1. **Debug log mode** — HUD writes timestamped log of: raw chunks received, parser state transitions, store writes, render state. One greppable file per session.
+2. **Session recorder** — structured format (jsonl with timestamps) capturing raw stream + keystrokes + HUD output. Enables deterministic replay for bug reproduction.
+3. **Replay tool** — feed a recorded session back through the parser, step by step, showing what the parser thinks is happening vs what actually happened.
+
+**Goal:** Give a developer (human or AI) a single artifact that shows the full picture — what the game sent, what the player did, and what the parser concluded — all temporally aligned.
+
+## Docker-Based Integration Tests
+
+Unit tests with mocked ports don't catch composition root wiring bugs (thread affinity, profile resolution, DB creation). Need integration tests that:
+- Spin up the real intel server container
+- Run actual push/pull cycles with multiple profiles
+- Exercise HUD shutdown flow with real threading
+- Test against real SQLite (not mocked stores)
+- Verify the full path from config file → composition root → use case → adapter → external system
