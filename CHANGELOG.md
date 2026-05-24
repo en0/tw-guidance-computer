@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.7.0
+
+### Breaking Changes
+
+- **Parser rewrite**: Simplified to 5 essential patterns. Commerce reports, transaction tracking, cargo cost basis, and chat parsing have been removed.
+- **Cargo tracking removed**: All cargo-related queries now return empty data. HUD and CLI display "Empty" for cargo sections.
+
+### Bug Fixes
+
+- **Fix false warp edges from nav menu**: The sector navigation menu (`(T)`, `(S)`, `(*)`, `(N)` entries) was being parsed as authoritative sector data, creating false warp edges in the graph. Trade pairs showed sectors as 1-hop apart that weren't actually adjacent.
+- **Self-healing warps**: Visiting a sector now replaces ALL existing warp edges from that sector with the complete observed set. Bad data is corrected as you explore.
+- **Intel import warp strategy**: Changed from additive (INSERT OR IGNORE) to replace-per-sector-if-newer. False edges no longer persist through intel sync.
+
+### Parser Patterns (exhaustive)
+
+- Command prompt `[N] (?=Help)` — current sector
+- Sector display block (`Sector : N in region.` through `Warps to Sector(s) :`) — sector info, ports, planets, warps, current sector
+- `You have N turns this Stardate.` / `One turn deducted, N turns left.` — turn count
+- `You have N credits.` / `You have N credits and N empty cargo holds.` — credits on-hand
+- Status bar `Sect N│Turns N│Creds N│...` — force-resync
+
 ## 0.6.2
 
 ### Bug Fixes
