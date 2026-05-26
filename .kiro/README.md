@@ -102,8 +102,8 @@ Agents write here when they learn something. Read before you build.
 
 ## Session Data
 
-Raw game logs: `~/traidwars/sessions/`
-Debug samples: `~/traidwars/debug-sessions/`
+Raw game logs: `~/Documents/Games/TradeWars/sessions/`
+Debug samples: `~/Documents/Games/TradeWars/debug-sessions/`
 
 Copy interesting session snippets into `debug-sessions/` for the parser expert to analyze.
 

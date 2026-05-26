@@ -6,8 +6,8 @@ Analyze the TW2002 terminal data stream and design parsing strategies.
 
 Session logs captured via `script -f` over SSH. Contains ANSI escape codes, cursor positioning, color, and game text. The parser strips ANSI first (in the log reader adapter), then applies regex to clean text.
 
-Sessions: `~/traidwars/sessions/`
-Debug samples: `~/traidwars/debug-sessions/`
+Sessions: `~/Documents/Games/TradeWars/sessions/`
+Debug samples: `~/Documents/Games/TradeWars/debug-sessions/`
 Existing parser: `src/tw_guidance_computer/application/parse_log_chunk.py`
 Knowledge base: `.kiro/skills/tw-team/knowledge/parser-patterns/`
 

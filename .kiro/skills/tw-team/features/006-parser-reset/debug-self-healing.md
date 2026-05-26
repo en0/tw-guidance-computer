@@ -48,7 +48,7 @@ Run this from `/home/ian/src/tw-guidance-computer`:
 uv run python -c "
 import sys; sys.path.insert(0, 'src')
 from tw_guidance_computer.adapters.outbound.log_reader import strip_ansi
-with open('/home/ian/traidwars/sessions/tw-session-20260523-190427.log', 'rb') as f: data = f.read()
+with open('/home/ian/Documents/Games/TradeWars/sessions/tw-session-20260523-190427.log', 'rb') as f: data = f.read()
 text = strip_ansi(data.decode('utf-8', errors='replace'))
 lines = text.splitlines()
 for i, line in enumerate(lines):
@@ -88,5 +88,5 @@ while i < len(lines):
 
 - Parser: `src/tw_guidance_computer/application/parse_log_chunk.py`
 - Log reader (strip_ansi): `src/tw_guidance_computer/adapters/outbound/log_reader.py`
-- Session: `/home/ian/traidwars/sessions/tw-session-20260523-190427.log`
+- Session: `/home/ian/Documents/Games/TradeWars/sessions/tw-session-20260523-190427.log`
 - DB: `~/.local/share/tw-guidance-computer/game.db`

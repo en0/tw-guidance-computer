@@ -35,4 +35,4 @@ The header line contains the full command and terminal info. This line is sensit
 The log reader adapter handles tailing the file and stripping ANSI. The parser receives clean text. But understanding the raw format is essential for debugging parser issues.
 
 ## Sources
-Observed in `~/traidwars/launch-with-guidance.sh` and session files.
+Observed in `~/Documents/Games/TradeWars/launch-with-guidance.sh` and session files.

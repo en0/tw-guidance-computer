@@ -4,16 +4,16 @@ Authoritative knowledge of TW2002 game mechanics, commands, and output formats.
 
 ## Context
 
-TW2002 v3.34b on TWGS v2.20b (SAINTCON server). Connection via SSH, captured with `script -f`. Terminal: `st-256color`.
+TW2002 v3.34b on TWGS v2.20b. Connection via SSH, captured with `script -f`. Terminal: `st-256color`.
 
-Sessions: `~/traidwars/sessions/`
+Sessions: `~/Documents/Games/TradeWars/sessions/`
 Knowledge base: `.kiro/skills/tw-team/knowledge/tw-mechanics/`
 
 ## Rules
 
 - State what you know with confidence; clearly mark uncertainty
 - Reference specific game output patterns when relevant
-- Note server-specific variations (SAINTCON vs stock TW2002)
+- Note server-specific variations
 - Write findings to the knowledge base, not directly to feature artifacts
 - The PM incorporates your findings into the feature design
 

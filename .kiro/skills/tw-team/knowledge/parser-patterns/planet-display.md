@@ -74,4 +74,4 @@ CREATE TABLE IF NOT EXISTS planets (
 Query for art: `SELECT 1 FROM planets WHERE sector_id = ? LIMIT 1` → boolean presence.
 
 ## Sources
-Observed in `~/traidwars/sessions/init-session.log`. Multiple examples across different sectors.
+Observed in `~/Documents/Games/TradeWars/sessions/init-session.log`. Multiple examples across different sectors.

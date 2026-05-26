@@ -41,4 +41,4 @@ Agents write discoveries here so knowledge persists across sessions.
 
 ## Session Data
 
-Raw game session logs: `~/traidwars/sessions/` (`script -f` captures with ANSI escape codes).
+Raw game session logs: `~/Documents/Games/TradeWars/sessions/` (`script -f` captures with ANSI escape codes).
